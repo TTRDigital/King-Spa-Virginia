@@ -315,6 +315,8 @@ function toc() {
     const collapse = $(".elementor-toc__toggle-button--collapse", w);
     const set = (collapsed: boolean) => {
       w.classList.toggle("elementor-toc--collapsed", collapsed);
+      // Elementor slides the list away; no stylesheet rule hides it.
+      body.style.display = collapsed ? "none" : "";
       expand?.setAttribute("aria-expanded", String(!collapsed));
       collapse?.setAttribute("aria-expanded", String(!collapsed));
     };

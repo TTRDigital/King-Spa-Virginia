@@ -67,7 +67,12 @@ export type Section = {
   columns: Column[];
 };
 
-export type ElDocument = { _type: "document"; cls: string; attrs: Attrs; sections: Section[] };
+/**
+ * An Elementor document (`<div class="elementor elementor-N">` + sections). `bare`: sections that
+ * browsers place outside their template on the live site (a post with unbalanced HTML closes the
+ * template early), rendered without the wrapper.
+ */
+export type ElDocument = { _type: "document"; bare?: boolean; cls: string; attrs: Attrs; sections: Section[] };
 
 export type PageData = {
   key: string;
@@ -85,7 +90,8 @@ export type PageData = {
   /** Elementor Canvas template: no theme header/footer. */
   canvas?: boolean;
   /** Header menu items WordPress marked as current on this page (li id -> classes). */
-  nav?: Record<string, { cls: string; ariaCurrent: string | null }>;
+  /** Header menu items that are current on this page: their <li> classes as on the live page, and whether the plugin marked the link active. */
+  nav?: Record<string, { cls: string; ariaCurrent: string | null; linkActive?: boolean }>;
   /** Which stylesheet in lib/data/css to use (defaults to the page's own). */
   cssKey?: string;
 };

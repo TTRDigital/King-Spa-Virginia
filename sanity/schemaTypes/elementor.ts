@@ -130,7 +130,12 @@ export const ksDocument = defineType({
   title: "Elementor document",
   type: "object",
   fieldsets: [advanced],
-  fields: [defineField({ name: "sections", title: "Sections", type: "array", of: [defineArrayMember({ type: "ksSection" })] }), tech("cls", "Class"), attrs],
+  fields: [
+    defineField({ name: "sections", title: "Sections", type: "array", of: [defineArrayMember({ type: "ksSection" })] }),
+    tech("cls", "Class"),
+    attrs,
+    defineField({ name: "bare", title: "Sections only (no wrapper)", type: "boolean", fieldset: "advanced", description: "Set on blog posts whose last sections sit outside the post template on the live site." }),
+  ],
   preview: { select: { s: "sections" }, prepare: ({ s }) => ({ title: `Content (${(s ?? []).length} sections)` }) },
 });
 

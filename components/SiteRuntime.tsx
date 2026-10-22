@@ -1,30 +1,15 @@
-"use client";
-
-import { useEffect } from "react";
-import { initForms } from "@/lib/runtime/forms";
-import { initMedia } from "@/lib/runtime/media";
-import { initMenus } from "@/lib/runtime/menu";
-import { initMisc } from "@/lib/runtime/misc";
-import { initSliders } from "@/lib/runtime/sliders";
-import { initWidgets } from "@/lib/runtime/widgets";
+import "server-only";
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
 
 /**
- * Brings the page's markup to life (menus, toggles, tabs, sliders, gallery,
- * videos, popups, forms), replacing the WordPress plugins' scripts.
- * Each page is a full page load, so this runs once per page.
+ * The page runtime (lib/runtime), loaded as a module script: it runs after the
+ * page is parsed and needs no React in the browser. Built by scripts/build-runtime.mjs.
  */
 export function SiteRuntime() {
-  useEffect(() => {
-    const w = window as unknown as { __ksRuntime?: boolean };
-    if (w.__ksRuntime) return;
-    w.__ksRuntime = true;
-    for (const init of [initMenus, initWidgets, initMedia, initSliders, initForms, initMisc]) {
-      try {
-        init();
-      } catch (error) {
-        console.warn("[ks]", error);
-      }
-    }
-  }, []);
-  return null;
+  const file = path.join(process.cwd(), "public/js/runtime.json");
+  if (!existsSync(file)) return null;
+  const { src } = JSON.parse(readFileSync(file, "utf8")) as { src: string };
+  // Module scripts already wait for the page to be parsed; `defer` just says so.
+  return <script type="module" src={src} defer />;
 }

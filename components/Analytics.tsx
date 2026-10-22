@@ -1,10 +1,9 @@
-import Script from "next/script";
-
 /*
  * The live site's tags, same IDs: Google Tag Manager, the gtag for
  * UA-210625545-1, Meta Pixel, Hotjar, Clixtell, Ahrefs Analytics and Klaviyo.
  * They start on the visitor's first scroll/tap/key/mouse move, or 3 seconds
- * after the page has loaded, so they never hold up the first paint.
+ * after the page has loaded, so they never hold up the first paint. A plain
+ * inline script: the pages run without React in the browser.
  * NEXT_PUBLIC_DISABLE_TAGS=1 switches them off (local testing).
  */
 const IDS = {
@@ -33,9 +32,7 @@ export function Analytics() {
   if (process.env.NEXT_PUBLIC_DISABLE_TAGS === "1") return null;
   return (
     <>
-      <Script id="ks-tags" strategy="afterInteractive">
-        {LOADER}
-      </Script>
+      <script id="ks-tags" dangerouslySetInnerHTML={{ __html: LOADER }} />
       <noscript>
         <iframe src={`https://www.googletagmanager.com/ns.html?id=${IDS.gtm}`} height="0" width="0" style={{ display: "none", visibility: "hidden" }} title="Google Tag Manager" />
       </noscript>

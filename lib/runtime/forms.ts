@@ -30,6 +30,8 @@ function captcha(form: HTMLElement): () => string | null {
   const boxes = $$(".elementor-g-recaptcha, .g-recaptcha, .wpcf7-recaptcha", form).filter((b) => b.dataset.sitekey);
   if (!boxes.length) return () => null;
   const ids: number[] = [];
+  // Keep the checkbox's space from the start, as the live page has it on load.
+  for (const b of boxes) if ((b.dataset.size || "normal") === "normal") b.style.minHeight = "78px";
   whenVisible(form, () =>
     void loadRecaptcha().then(() => {
       for (const b of boxes) ids.push(grecaptcha()!.render(b, { sitekey: b.dataset.sitekey!, size: b.dataset.size || "normal", theme: b.dataset.theme || "light" }));

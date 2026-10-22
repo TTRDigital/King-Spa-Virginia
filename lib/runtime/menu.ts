@@ -10,11 +10,6 @@ import { $, $$ } from "./dom";
  * header switches to the phone menu (.ks-nav-collapsed, see lib/data/css).
  */
 
-const BARS =
-  '<svg aria-hidden="true" class="e-font-icon-svg e-fas-bars" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><path d="M16 132h416c8.837 0 16-7.163 16-16V76c0-8.837-7.163-16-16-16H16C7.163 60 0 67.163 0 76v40c0 8.837 7.163 16 16 16zm0 160h416c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16H16c-8.837 0-16 7.163-16 16v40c0 8.837 7.163 16 16 16zm0 160h416c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16H16c-8.837 0-16 7.163-16 16v40c0 8.837 7.163 16 16 16z"></path></svg>';
-const CLOSE =
-  '<svg aria-hidden="true" class="e-font-icon-svg e-far-window-close" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><path d="M464 32H48C21.5 32 0 53.5 0 80v352c0 26.5 21.5 48 48 48h416c26.5 0 48-21.5 48-48V80c0-26.5-21.5-48-48-48zm0 394c0 3.3-2.7 6-6 6H54c-3.3 0-6-2.7-6-6V86c0-3.3 2.7-6 6-6h404c3.3 0 6 2.7 6 6v340zM356.5 194.6L295.1 256l61.4 61.4c4.6 4.6 4.6 12.1 0 16.8l-22.3 22.3c-4.6 4.6-12.1 4.6-16.8 0L256 295.1l-61.4 61.4c-4.6 4.6-12.1 4.6-16.8 0l-22.3-22.3c-4.6-4.6-4.6-12.1 0-16.8l61.4-61.4-61.4-61.4c-4.6-4.6-4.6-12.1 0-16.8l22.3-22.3c4.6-4.6 12.1-4.6 16.8 0l61.4 61.4 61.4-61.4c4.6-4.6 12.1-4.6 16.8 0l22.3 22.3c4.7 4.6 4.7 12.1 0 16.8z"></path></svg>';
-
 /** Is this menu currently shown as a dropdown (phone menu)? */
 function dropdownMode(widget: HTMLElement): boolean {
   if (document.querySelector(".ks-body")?.classList.contains("ks-nav-collapsed") && widget.classList.contains("hfe-nav-menu__breakpoint-tablet")) return true;
@@ -59,7 +54,8 @@ function setup(widget: HTMLElement) {
       toggle.classList.toggle("hfe-active-menu", open);
       toggle.setAttribute("aria-expanded", String(open));
       nav.classList.toggle("menu-is-active", open);
-      if (icon && nav.dataset.toggleIcon) icon.innerHTML = open ? CLOSE : BARS;
+      // The plugin's icons, from the nav's data-toggle-icon / data-close-icon (Font Awesome <i>).
+      if (icon && nav.dataset.toggleIcon) icon.innerHTML = (open ? nav.dataset.closeIcon : nav.dataset.toggleIcon) ?? "";
       if (nav.dataset.fullWidth === "yes") {
         toggle.classList.toggle("hfe-active-menu-full-width", open);
         if (open) fullWidth();

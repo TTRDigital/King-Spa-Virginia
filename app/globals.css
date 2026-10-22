@@ -12,3 +12,13 @@
 .ks-body {
   min-height: 100vh;
 }
+
+/*
+ * Background photos of sections further down the page wait until the section comes near the
+ * screen (lib/runtime/media.ts removes the class). Only when scripts run: html.ks-js is set by
+ * app/(site)/layout.tsx before the page is drawn.
+ */
+html.ks-js .ks-lazy-bg,
+html.ks-js .ks-lazy-bg * {
+  background-image: none !important;
+}

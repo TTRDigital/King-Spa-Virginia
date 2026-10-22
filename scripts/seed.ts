@@ -109,7 +109,7 @@ async function section(s: Section): Promise<Record<string, unknown>> {
 }
 
 async function document(d: ElDocument, key?: string): Promise<Record<string, unknown>> {
-  return { _type: "ksDocument", ...(key ? { _key: key } : {}), cls: d.cls, attrsJson: json(d.attrs), sections: await Promise.all(d.sections.map(section)) };
+  return { _type: "ksDocument", ...(key ? { _key: key } : {}), ...(d.bare ? { bare: true } : {}), cls: d.cls, attrsJson: json(d.attrs), sections: await Promise.all(d.sections.map(section)) };
 }
 
 const docs = (list: ElDocument[]) => Promise.all(list.map((d, i) => document(d, `doc${i}`)));
@@ -121,7 +121,7 @@ const pages: PageData[] = readdirSync(join(root, "lib/data/pages"))
   .map((f) => JSON.parse(readFileSync(join(root, "lib/data/pages", f), "utf8")));
 const chrome: Chrome = JSON.parse(readFileSync(join(root, "lib/data/chrome.json"), "utf8"));
 
-const kind = (p: PageData) => (/\bsingle-post\b/.test(p.bodyClass) ? "post" : /\barchive\b/.test(p.bodyClass) ? "archive" : "page");
+const kind = (p: PageData) => (/(^|\s)postid-\d+(\s|$)/.test(p.bodyClass) ? "post" : /(^|\s)archive(\s|$)/.test(p.bodyClass) ? "archive" : "page");
 const pageId = (p: PageData) => `page-${p.key.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
 
 async function build() {

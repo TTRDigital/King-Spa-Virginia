@@ -2,7 +2,7 @@ import { $, $$ } from "./dom";
 
 /*
  * Smaller page scripts from the live site: the header shadow after 200px of
- * scrolling, blog call-to-action click events, publish dates on related-post
+ * scrolling, stretched sections, blog call-to-action click events, publish dates on related-post
  * cards, and the blog's article search.
  */
 
@@ -19,9 +19,29 @@ function data(): { posts?: PostInfo[] } {
 function stickyHeader() {
   const body = $(".ks-body");
   if (!body) return;
+  // Elementor's sticky sections (the header): same classes as on the live site; the stylesheet keeps them at the top.
+  for (const sec of $$("[data-settings*='\"sticky\":\"top\"']")) sec.classList.add("elementor-sticky", "elementor-sticky--active", "elementor-sticky--effects");
   const on = () => body.classList.toggle("sticky-header", scrollY >= 200);
   on();
   addEventListener("scroll", on, { passive: true });
+}
+
+/** Elementor "stretch section": the section spans the whole window, whatever box it sits in. */
+function stretchSections() {
+  const secs = $$(".elementor-section-stretched");
+  if (!secs.length) return;
+  const fit = () => {
+    const page = document.body.getBoundingClientRect();
+    for (const s of secs) {
+      s.style.width = "";
+      s.style.left = "";
+      const offset = s.getBoundingClientRect().left - page.left;
+      s.style.width = `${document.body.clientWidth}px`;
+      s.style.left = `${-offset}px`;
+    }
+  };
+  fit();
+  addEventListener("resize", fit);
 }
 
 /** Blog CTA boxes: the same dataLayer / gtag event the live posts sent. */
@@ -89,6 +109,7 @@ function blogSearch(posts: PostInfo[]) {
 
 export function initMisc() {
   stickyHeader();
+  stretchSections();
   ctaTracking();
   const posts = data().posts ?? [];
   cardDates(posts);

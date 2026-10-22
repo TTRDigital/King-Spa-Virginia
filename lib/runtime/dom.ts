@@ -94,5 +94,17 @@ export function afterLoad(fn: () => void) {
   else addEventListener("load", () => idle(fn), { once: true });
 }
 
+/** Runs once: when the element comes near the screen, or when the page is idle after load, whichever is first. */
+export function visibleOrIdle(el: Element, fn: () => void) {
+  let done = false;
+  const once = () => {
+    if (done) return;
+    done = true;
+    fn();
+  };
+  whenVisible(el, once);
+  afterLoad(once);
+}
+
 /** Height of the sticky site header (for anchor scrolling). */
 export const headerHeight = () => (document.getElementById("masthead")?.getBoundingClientRect().height ?? 0);

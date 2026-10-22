@@ -1,7 +1,8 @@
-import { $, $$, settings, whenVisible } from "./dom";
+import { $, $$, settings, visibleOrIdle } from "./dom";
 
 /*
- * Carousels, loaded only on pages that have them, when they come near the screen:
+ * Carousels, loaded only on pages that have them, when they come near the screen
+ * or once the page is idle (Elementor starts them on load):
  * - Elementor's image carousels and review carousels: Swiper 8 (the version Elementor ships)
  * - the theme's section sliders (custom.js): jQuery + Slick, with the theme's exact settings
  */
@@ -16,7 +17,7 @@ async function swipers() {
   const els = $$(".elementor-widget-image-carousel .swiper, .elementor-widget-reviews .elementor-main-swiper, .elementor-widget-testimonial-carousel .elementor-main-swiper");
   if (!els.length) return;
   for (const el of els) {
-    whenVisible(el, async () => {
+    visibleOrIdle(el, async () => {
       const { default: Swiper, Navigation, Pagination, Autoplay, EffectFade, A11y } = await import("swiper");
       const widget = el.closest<HTMLElement>(".elementor-widget")!;
       const s = settings<S>(widget);
@@ -74,13 +75,14 @@ async function slick() {
   const dishes = $(".popular-dishes-slider ul") && $(".food-slider-wrap .elementor-container");
   if (!found.length && !dishes) return;
   const first = $(found[0]?.[0] ?? ".popular-dishes-slider")!;
-  whenVisible(first, async () => {
+  visibleOrIdle(first, async () => {
     const { default: jq } = await import("jquery");
     (window as unknown as { jQuery: typeof jq; $: typeof jq }).jQuery = jq;
     (window as unknown as { $: typeof jq }).$ = jq;
     await import("slick-carousel");
     const $j = jq as unknown as (s: string) => { slick: (o: unknown, ...a: unknown[]) => void; each: (f: (i: number, e: Element) => void) => void; on: (ev: string, f: (this: Element) => void) => void; data: (k: string) => unknown };
-    for (const [sel, opts] of found) $j(sel).slick(opts);
+    // rows: 0 = slides stay direct children of the track, as with the theme's older Slick (1.8.1 wraps each in two <div>s).
+    for (const [sel, opts] of found) $j(sel).slick({ rows: 0, ...opts });
     $j(".sanctuary-healing li").on("click", function (this: Element) {
       $j(".healing-slider > .elementor-widget-wrap").slick("slickGoTo", Number(this.getAttribute("data-slide")));
     });
@@ -88,8 +90,9 @@ async function slick() {
       // Dining slider (page script on the live site, started 800 ms after load).
       setTimeout(() => {
         $$(".popular-dishes-slider ul li").forEach((li, i) => li.setAttribute("data-slide", String(i)));
-        $j(".popular-dishes-slider ul").slick({ slidesToShow: 5, slidesToScroll: 5, asNavFor: ".food-slider-wrap .elementor-container", infinite: false, arrows: false, dots: false, variableWidth: true });
+        $j(".popular-dishes-slider ul").slick({ rows: 0, slidesToShow: 5, slidesToScroll: 5, asNavFor: ".food-slider-wrap .elementor-container", infinite: false, arrows: false, dots: false, variableWidth: true });
         $j(".food-slider-wrap .elementor-container").slick({
+          rows: 0,
           slidesToShow: 5,
           slidesToScroll: 1,
           asNavFor: ".popular-dishes-slider ul",

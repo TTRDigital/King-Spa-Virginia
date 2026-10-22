@@ -1,4 +1,4 @@
-import { $, $$, afterLoad, device, loadScript, settings, whenVisible } from "./dom";
+import { $, $$, afterLoad, device, loadScript, settings, visibleOrIdle, whenVisible } from "./dom";
 
 /*
  * Galleries (Elementor "e-gallery" masonry), the image lightbox, YouTube
@@ -222,7 +222,8 @@ function videoWidgets() {
 function elfsight() {
   const el = $("[class*='elfsight-app-']");
   if (!el) return;
-  whenVisible(el, () => void loadScript("https://elfsightcdn.com/platform.js"), "600px");
+  // Live loads the widget with the page; here when it nears the screen or the page is idle.
+  visibleOrIdle(el, () => void loadScript("https://elfsightcdn.com/platform.js"));
 }
 
 function addToAny() {
@@ -234,7 +235,7 @@ function addToAny() {
 
 function popups() {
   for (const p of $$("[data-ks-popup]")) {
-    let s: { triggers?: { page_load?: string; page_load_delay?: number } } = {};
+    let s: { triggers?: { page_load?: string; page_load_delay?: number }; a11y_navigation?: string } = {};
     try {
       s = JSON.parse(p.dataset.ksPopup || "{}");
     } catch {
@@ -254,20 +255,38 @@ function popups() {
     addEventListener("keydown", (e) => {
       if (e.key === "Escape") close();
     });
-    afterLoad(() =>
-      window.setTimeout(
-        () => {
-          p.style.display = "";
-          p.classList.add("ks-popup-open");
-          $(".dialog-widget-content", p)?.classList.add("fadeIn");
-        },
-        Number(s.triggers?.page_load_delay || 0) * 1000,
-      ),
-    );
+    const open = () => {
+      p.style.display = "";
+      p.classList.add("ks-popup-open");
+      $(".dialog-widget-content", p)?.classList.add("fadeIn");
+      // "Accessible navigation": Elementor moves keyboard focus into the popup (its close button).
+      if (s.a11y_navigation === "yes") $<HTMLElement>(".dialog-close-button", p)?.focus({ preventScroll: true });
+    };
+    // Open already (no delay, see lib/page-html.ts), or Elementor's way: when its script starts, after the set delay.
+    if (p.style.display !== "none") open();
+    else window.setTimeout(open, Number(s.triggers?.page_load_delay || 0) * 1000);
+  }
+}
+
+/** Section backgrounds held back by .ks-lazy-bg (lib/render.ts): load them near the screen, or once the page is idle. */
+function lazyBackgrounds() {
+  for (const s of $$(".ks-lazy-bg")) visibleOrIdle(s, () => s.classList.remove("ks-lazy-bg"));
+}
+
+/** Bitmaps inside SVG icons, held back as data-ks-href (lib/render.ts): load them near the screen, or once the page is idle. */
+function lazySvgImages() {
+  for (const img of $$<SVGImageElement>("image[data-ks-href]")) {
+    visibleOrIdle(img.closest("svg") ?? img, () => {
+      const href = img.dataset.ksHref ?? "";
+      img.setAttribute("href", href);
+      img.setAttributeNS("http://www.w3.org/1999/xlink", "xlink:href", href);
+    });
   }
 }
 
 export function initMedia() {
+  lazyBackgrounds();
+  lazySvgImages();
   for (const w of $$(".elementor-widget-gallery")) gallery(w);
   lightbox();
   backgroundVideos();

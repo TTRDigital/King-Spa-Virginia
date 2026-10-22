@@ -1,22 +1,21 @@
-import "./globals.css";
 import type { Metadata } from "next";
-import { getChrome, getPage } from "@/lib/content";
-import { pageHtml, stylesheetHref } from "@/lib/page-html";
-import { SiteRuntime } from "@/components/SiteRuntime";
-import { Analytics } from "@/components/Analytics";
 
 export const metadata: Metadata = { title: { absolute: "Page Not Found - KING SPA Virginia" }, robots: { index: false, follow: true } };
 
-/* The live site's 404 page, served with a real 404 status (.htaccess ErrorDocument). */
-export default async function NotFound() {
-  const [page, chrome] = await Promise.all([getPage("/404/"), getChrome()]);
-  if (!page) return <h1>Page not found</h1>;
+/*
+ * Next.js's own not-found screen. The site's real 404 page is the live site's, built at /404/ and
+ * served by Apache for unknown URLs (public/.htaccess). Kept tiny: Next.js embeds this component in
+ * every page's data.
+ */
+export default function NotFound() {
   return (
-    <>
-      <link rel="stylesheet" href={stylesheetHref(page)} precedence="default" />
-      <div className={`ks-body ${page.bodyClass}`} dangerouslySetInnerHTML={{ __html: pageHtml(page, chrome) }} />
-      <SiteRuntime />
-      <Analytics />
-    </>
+    <main style={{ fontFamily: "sans-serif", padding: "4rem 1rem", textAlign: "center" }}>
+      <h1>Page not found</h1>
+      <p>
+        {/* A full page load: the site's pages carry no client-side router. */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+        <a href="/">KING SPA Virginia home page</a>
+      </p>
+    </main>
   );
 }

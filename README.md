@@ -1,0 +1,139 @@
+# KING SPA Virginia — virginia.kingspa.com
+
+The KING SPA Virginia website, rebuilt from the WordPress + Elementor site as a
+Next.js 16 static export with Sanity as the CMS. Every page keeps its live URL,
+text, photos, titles and descriptions; old WordPress URLs redirect (public/.htaccess).
+The site is plain files hosted on SiteGround; there is no server code apart from
+the form handler (public/api/form.php).
+
+## How it fits together
+
+| Part | Where |
+| --- | --- |
+| Page content (built-in copy of the live site) | `lib/data/pages/*.json`, header/footer/popups in `lib/data/chrome.json`, business details in `lib/data/site.ts` |
+| Page styles (the live site's own CSS, cut down per page) | `lib/data/css/*.css` |
+| Renderer (Elementor sections/columns/widgets → the live markup) | `lib/render.ts`, `lib/page-html.ts` |
+| Page route (every page, at its live URL) | `app/(site)/[[...slug]]/page.tsx` |
+| Behaviour (menus, tabs, accordions, sliders, gallery, popups, forms…) | `lib/runtime/*` — plain TypeScript, no React in the browser |
+| CMS | Sanity Studio at `/cms` (`sanity.config.ts`, `sanity/`) |
+| SEO | titles/meta/Open Graph from the live site (`lib/seo.ts`), JSON-LD (`lib/schema.ts`), `app/sitemap.ts`, `app/robots.ts` |
+| Hosting rules | `public/.htaccess` (https, host, redirects, 410s, headers, caching) |
+| Forms | `public/api/form.php` (mail + optional Klaviyo + reCAPTCHA check) |
+
+Content: the site reads Sanity at build time and lays it over the built-in copy,
+page by page (a page in Sanity replaces the built-in one; pages added in Sanity are
+built too). Until a Sanity project is connected, the site builds from the built-in
+copy alone.
+
+### Build steps (`npm run build`)
+
+1. `scripts/optimize-images.mjs` — WebP copies of every photo (256–1920px) in
+   `public/_img`; page stylesheets into `public/css` with background photos at
+   phone/tablet/desktop sizes; the Font Awesome and Elementor icon fonts
+   (`assets/icon-fonts`) cut down to the icons the site uses.
+2. `scripts/build-runtime.mjs` — bundles `lib/runtime` into `public/js` (esbuild).
+3. `next build` — static export into `out/`.
+4. `scripts/strip-next-runtime.mjs` — removes Next.js's browser scripts from the
+   website's pages (they are static HTML plus the runtime above; the Studio at
+   `/cms` keeps them). The build fails if any are left.
+
+`out/` is what goes to SiteGround's `public_html`.
+
+### Speed
+
+Hero photo preloaded (high priority, right size per screen), heading and text fonts
+preloaded, other photos lazy-loaded, section backgrounds further down load when
+they come near the screen, YouTube videos and the analytics tags start after the
+page has loaded, no React in the browser. Lighthouse (mobile) scores are in the
+handover report.
+
+## Run it locally
+
+```bash
+npm ci
+cp .env.example .env.local   # optional: Sanity project, tag switch
+npm run dev                  # http://localhost:3000, Studio at /cms
+npm run build                # static site in out/
+npm run lint && npm run typecheck
+```
+
+`NEXT_PUBLIC_DISABLE_TAGS=1` in `.env.local` keeps the analytics tags off while testing.
+
+## Sanity
+
+The project uses its own variables, `NEXT_PUBLIC_KSV_SANITY_PROJECT_ID` and
+`NEXT_PUBLIC_KSV_SANITY_DATASET` (dataset `production`), so it never picks up
+another project's ID from the environment.
+
+1. **Project ID** — GitHub: Settings → Secrets and variables → Actions → Variables →
+   `SANITY_PROJECT_ID`.
+2. **CORS origins** — sanity.io/manage → project → API → CORS origins, each with
+   "Allow credentials": `https://virginia.kingspa.com`, `http://localhost:3000`, and
+   the SiteGround temporary address while testing there.
+3. **Write token** — sanity.io/manage → API → Tokens → Editor token, saved as the
+   GitHub secret `SANITY_WRITE_TOKEN`. Delete or rotate it after loading the content.
+4. **Load the content** — Actions → "Load content into Sanity" → Run workflow:
+   - `dry-run` checks everything and writes nothing;
+   - `add-missing` creates only what is not in Sanity yet (safe to repeat);
+   - `overwrite` replaces Sanity's documents with the built-in content.
+   The "only" box limits it to document IDs starting with the given text
+   (e.g. `page-_home,siteChrome`).
+5. **Rebuild on publish** (optional) — a Sanity webhook (API → Webhooks) that POSTs to
+   `https://api.github.com/repos/TTRDigital/King-Spa-Virginia/dispatches` with the body
+   `{"event_type":"sanity-publish"}` and an `Authorization: Bearer <token>` header
+   (a fine-grained GitHub token for this repository with "Contents: read and write").
+   Otherwise run "Deploy to SiteGround" by hand after publishing.
+
+In the Studio, editors change headings, text, buttons, links and photos (with alt
+text). The "Layout (advanced)" groups hold the class names and settings that tie each
+element to the live stylesheet; leave them unless you know Elementor.
+
+## Deploy (GitHub Actions → SiteGround over FTPS)
+
+"Deploy to SiteGround" runs on every push to this branch or `main`, on Sanity publish
+(webhook above) and by hand. Repository secrets:
+
+| Secret | |
+| --- | --- |
+| `SG_FTP_SERVER`, `SG_FTP_USERNAME`, `SG_FTP_PASSWORD` | SiteGround Site Tools → Site → FTP Accounts. Files go to `./public_html/` (variable `SG_FTP_DIR` to change). |
+| `FORM_TO_EMAIL` | Where form submissions are sent (comma-separated for several). |
+| `RECAPTCHA_SECRET_ELEMENTOR`, `RECAPTCHA_SECRET_CF7` | Optional: secret keys for the reCAPTCHA site keys on the newsletter and review forms, so the server checks them too. |
+| `KLAVIYO_LIST_ID` | Optional: Klaviyo list that newsletter sign-ups join. |
+
+Until the FTP secrets exist the workflow only builds (a check that the site builds).
+The form settings are written at deploy time to `api/.config.php`, which is never in
+the repository and is blocked from the web by `.htaccess`.
+
+## DNS and HTTPS (Cloudflare)
+
+`virginia.kingspa.com` lives in the kingspa.com Cloudflare zone. Change only this
+one record:
+
+| Type | Name | Content | Proxy |
+| --- | --- | --- | --- |
+| A | `virginia` | the site's IP from SiteGround Site Tools → Site → Site Information | see below |
+
+Certificate, either way:
+
+- **Cloudflare origin certificate:** Cloudflare → SSL/TLS → Origin Server → Create
+  certificate (hostname `virginia.kingspa.com`); in SiteGround Site Tools → Security →
+  SSL Manager → Import, paste the certificate and key. Then proxy the record (orange
+  cloud) and set SSL/TLS mode to **Full (strict)**.
+- **Let's Encrypt on SiteGround:** keep the record **DNS only** (grey cloud) until
+  SiteGround has issued the Let's Encrypt certificate (SSL Manager → Get), then proxy
+  it and set **Full (strict)**.
+
+`.htaccess` reads Cloudflare's `X-Forwarded-Proto`/`CF-Visitor` headers, so the http →
+https redirect does not loop behind the proxy. Nothing else in the kingspa.com zone
+needs to change.
+
+## Notes for later changes
+
+- Icon fonts are cut down to the icons in use at build time. An icon that no page
+  uses yet needs its CSS rule in the page stylesheet before it shows.
+- Fonts ship Latin only (latin-ext is not used by any text on the site).
+- Old URLs: add a line to the "Old URLs" block of `public/.htaccess`, above the
+  slash rule.
+- Analytics tags (Tag Manager, gtag, Meta Pixel, Hotjar, Clixtell, Ahrefs, Klaviyo)
+  are in `components/Analytics.tsx`; Tag Manager adds GA4 and Google Ads. A new tag
+  domain must also be added to the Content-Security-Policy in `.htaccess`.
