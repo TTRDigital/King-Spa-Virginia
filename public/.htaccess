@@ -1,0 +1,437 @@
+# KING SPA Virginia: static Next.js export on SiteGround (Apache), behind Cloudflare.
+# Does what WordPress and its plugins did: one address, https, trailing
+# slashes, every old URL (301), security headers, caching and compression.
+
+Options -Indexes -MultiViews
+DirectoryIndex index.html index.php
+# The trailing slash is added by a rewrite below (on https), not by Apache.
+DirectorySlash Off
+# A real 404 status with the site's 404 page.
+ErrorDocument 404 /404.html
+ErrorDocument 410 /404.html
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # ---- One address: https://virginia.kingspa.com ----
+  # The SiteGround temporary address (*.sg-host.com / *.siteground.*), www. and
+  # any other host pointed here go to the main domain, path kept.
+  # localhost is left alone for testing.
+  RewriteCond %{HTTP_HOST} !^virginia\.kingspa\.com$ [NC]
+  RewriteCond %{HTTP_HOST} !^(localhost|127\.0\.0\.1)(:\d+)?$ [NC]
+  RewriteRule ^(.*)$ https://virginia.kingspa.com/$1 [R=301,L]
+
+  # http -> https. Cloudflare talks to the server on its own connection, so
+  # the visitor's scheme is read from X-Forwarded-Proto / CF-Visitor too:
+  # without these checks a "Flexible" Cloudflare setting would loop forever.
+  RewriteCond %{HTTPS} !=on
+  RewriteCond %{HTTP:X-Forwarded-Proto} !https [NC]
+  RewriteCond %{HTTP:CF-Visitor} !scheme.{0,4}https [NC]
+  RewriteCond %{HTTP_HOST} ^virginia\.kingspa\.com$ [NC]
+  RewriteRule ^(.*)$ https://virginia.kingspa.com/$1 [R=301,L]
+
+  # ---- Old URLs (keep above the slash rule) ----
+  RewriteRule ^index\.(?:php|html?)$ https://%{HTTP_HOST}/ [R=301,L,NC]
+
+  # Redirects the WordPress site already made (Rank Math and WordPress's own
+  # "old slug" guesses), each straight to the final page in one step.
+  RewriteRule ^about-us/?$ https://%{HTTP_HOST}/about/ [R=301,L,NC]
+  RewriteRule ^about-us/areas-we-serve/day-spa-in-maryland/?$ https://%{HTTP_HOST}/areas-we-serve/day-spa-in-maryland/ [R=301,L,NC]
+  RewriteRule ^about-us/areas-we-serve/day-spa-in-new-jersey/?$ https://%{HTTP_HOST}/areas-we-serve/day-spa-in-new-jersey/ [R=301,L,NC]
+  RewriteRule ^about-us/areas-we-serve/day-spa-in-pennsylvania/?$ https://%{HTTP_HOST}/areas-we-serve/day-spa-in-pennsylvania/ [R=301,L,NC]
+  RewriteRule ^about/terms-conditions/?$ https://%{HTTP_HOST}/about/terms-and-conditions/ [R=301,L,NC]
+  RewriteRule ^aqua-pool/?$ https://%{HTTP_HOST}/ [R=301,L,NC]
+  RewriteRule ^areas-we-serve/?$ https://%{HTTP_HOST}/about/areas-we-serve-2/ [R=301,L,NC]
+  RewriteRule ^back-to-school-special/?$ https://%{HTTP_HOST}/ [R=301,L,NC]
+  RewriteRule ^blog/24k-gold/?$ https://%{HTTP_HOST}/treatments/facial/24k-gold/ [R=301,L,NC]
+  RewriteRule ^blog/about/?$ https://%{HTTP_HOST}/about/ [R=301,L,NC]
+  RewriteRule ^blog/aqua-pool/?$ https://%{HTTP_HOST}/explore/korean-bath-spa/aqua-pool/ [R=301,L,NC]
+  RewriteRule ^blog/areas-we-serve-2/?$ https://%{HTTP_HOST}/about/areas-we-serve-2/ [R=301,L,NC]
+  RewriteRule ^blog/aromatic-massage/?$ https://%{HTTP_HOST}/massage-therapy/aromatic-massage/ [R=301,L,NC]
+  RewriteRule ^blog/basic/?$ https://%{HTTP_HOST}/treatments/facial/basic/ [R=301,L,NC]
+  RewriteRule ^blog/bath-house/?$ https://%{HTTP_HOST}/explore/korean-bath-spa/bath-house/ [R=301,L,NC]
+  RewriteRule ^blog/blog/?$ https://%{HTTP_HOST}/blog/ [R=301,L,NC]
+  RewriteRule ^blog/body-scrub-vs-massage/?$ https://%{HTTP_HOST}/blog/can-body-scrub-remove-dark-spots-king-spa-va/ [R=301,L,NC]
+  RewriteRule ^blog/body-scrub/?$ https://%{HTTP_HOST}/body-scrub/ [R=301,L,NC]
+  RewriteRule ^blog/bubble-body/?$ https://%{HTTP_HOST}/treatments/couples/bubble-body/ [R=301,L,NC]
+  RewriteRule ^blog/can-body-scrub-remove-dark-spots-lets-find-out/?$ https://%{HTTP_HOST}/blog/can-body-scrub-remove-dark-spots-king-spa-va/ [R=301,L,NC]
+  RewriteRule ^blog/can-body-scrub-remove-dark-spots/?$ https://%{HTTP_HOST}/blog/can-body-scrub-remove-dark-spots-king-spa-va/ [R=301,L,NC]
+  RewriteRule ^blog/category/body-scrubs/?$ https://%{HTTP_HOST}/blog/category/blog/body-scrubs/ [R=301,L,NC]
+  RewriteRule ^blog/category/facials/?$ https://%{HTTP_HOST}/blog/category/blog/facials/ [R=301,L,NC]
+  RewriteRule ^blog/category/korean-spa/?$ https://%{HTTP_HOST}/blog/category/blog/korean-spa/ [R=301,L,NC]
+  RewriteRule ^blog/category/massage-guides/?$ https://%{HTTP_HOST}/blog/category/blog/massage-guides/ [R=301,L,NC]
+  RewriteRule ^blog/category/plan-your-visit/?$ https://%{HTTP_HOST}/blog/category/blog/plan-your-visit/ [R=301,L,NC]
+  RewriteRule ^blog/cbd-oil-massage/?$ https://%{HTTP_HOST}/massage-therapy/cbd-oil-massage/ [R=301,L,NC]
+  RewriteRule ^blog/cbd-oil/?$ https://%{HTTP_HOST}/body-scrub/women/cbd-oil/ [R=301,L,NC]
+  RewriteRule ^blog/chair-massage/?$ https://%{HTTP_HOST}/massage-therapy/chair-massage/ [R=301,L,NC]
+  RewriteRule ^blog/charcoal-sauna/?$ https://%{HTTP_HOST}/explore/charcoal-sauna/ [R=301,L,NC]
+  RewriteRule ^blog/classic/?$ https://%{HTTP_HOST}/body-scrub/women/classic/ [R=301,L,NC]
+  RewriteRule ^blog/combo-massage-2/?$ https://%{HTTP_HOST}/massage/combo-massage-2/ [R=301,L,NC]
+  RewriteRule ^blog/contact-us/?$ https://%{HTTP_HOST}/about/contact-us/ [R=301,L,NC]
+  RewriteRule ^blog/couples/?$ https://%{HTTP_HOST}/treatments/couples/ [R=301,L,NC]
+  RewriteRule ^blog/day-pass/?$ https://%{HTTP_HOST}/day-pass/ [R=301,L,NC]
+  RewriteRule ^blog/day-spa-in-maryland/?$ https://%{HTTP_HOST}/areas-we-serve/day-spa-in-maryland/ [R=301,L,NC]
+  RewriteRule ^blog/day-spa-in-new-jersey/?$ https://%{HTTP_HOST}/areas-we-serve/day-spa-in-new-jersey/ [R=301,L,NC]
+  RewriteRule ^blog/day-spa-in-pennsylvania/?$ https://%{HTTP_HOST}/areas-we-serve/day-spa-in-pennsylvania/ [R=301,L,NC]
+  RewriteRule ^blog/day-spa-in-washington-dc/?$ https://%{HTTP_HOST}/areas-we-serve/day-spa-in-washington-dc/ [R=301,L,NC]
+  RewriteRule ^blog/day-spa-in-west-virginia/?$ https://%{HTTP_HOST}/areas-we-serve/day-spa-in-west-virginia/ [R=301,L,NC]
+  RewriteRule ^blog/deep-tissue-massage/?$ https://%{HTTP_HOST}/massage-therapy/deep-tissue-massage/ [R=301,L,NC]
+  RewriteRule ^blog/dining/?$ https://%{HTTP_HOST}/explore/dining/ [R=301,L,NC]
+  RewriteRule ^blog/discovery/?$ https://%{HTTP_HOST}/treatments/facial/discovery/ [R=301,L,NC]
+  RewriteRule ^blog/explore/?$ https://%{HTTP_HOST}/explore/ [R=301,L,NC]
+  RewriteRule ^blog/facial/?$ https://%{HTTP_HOST}/treatments/facial/ [R=301,L,NC]
+  RewriteRule ^blog/faq/?$ https://%{HTTP_HOST}/about/faq/ [R=301,L,NC]
+  RewriteRule ^blog/foot-massage/?$ https://%{HTTP_HOST}/massage-therapy/foot-massage/ [R=301,L,NC]
+  RewriteRule ^blog/gold-aroma-treatment/?$ https://%{HTTP_HOST}/treatments/gold-aroma-treatment/ [R=301,L,NC]
+  RewriteRule ^blog/health-benefits/?$ https://%{HTTP_HOST}/blog/health-benefits-of-acupressure/ [R=301,L,NC]
+  RewriteRule ^blog/hinoki-bath/?$ https://%{HTTP_HOST}/explore/korean-bath-spa/hinoki-bath/ [R=301,L,NC]
+  RewriteRule ^blog/hot-stone-massage/?$ https://%{HTTP_HOST}/massage-therapy/hot-stone-massage/ [R=301,L,NC]
+  RewriteRule ^blog/hydrofacial/?$ https://%{HTTP_HOST}/treatments/facial/hydrofacial/ [R=301,L,NC]
+  RewriteRule ^blog/infrared-sauna-vs-steam-room/?$ https://%{HTTP_HOST}/blog/infrared-sauna-vs-steam-room-which-is-better/ [R=301,L,NC]
+  RewriteRule ^blog/kingspa-virginia-offers/?$ https://%{HTTP_HOST}/kingspa-virginia-offers/ [R=301,L,NC]
+  RewriteRule ^blog/korean-bath-spa/?$ https://%{HTTP_HOST}/explore/korean-bath-spa/ [R=301,L,NC]
+  RewriteRule ^blog/korean-spa/?$ https://%{HTTP_HOST}/blog/korean-spa-vs-traditional-spa/ [R=301,L,NC]
+  RewriteRule ^blog/massage-therapy/?$ https://%{HTTP_HOST}/massage-therapy/ [R=301,L,NC]
+  RewriteRule ^blog/men/?$ https://%{HTTP_HOST}/body-scrub/men/ [R=301,L,NC]
+  RewriteRule ^blog/mens-facial/?$ https://%{HTTP_HOST}/treatments/facial/mens-facial/ [R=301,L,NC]
+  RewriteRule ^blog/mens-king-body-scrub/?$ https://%{HTTP_HOST}/body-scrub/men/mens-king-body-scrub/ [R=301,L,NC]
+  RewriteRule ^blog/outdoor-bade-pool/?$ https://%{HTTP_HOST}/explore/korean-bath-spa/outdoor-bade-pool/ [R=301,L,NC]
+  RewriteRule ^blog/oxyjet/?$ https://%{HTTP_HOST}/treatments/facial/oxyjet/ [R=301,L,NC]
+  RewriteRule ^blog/policies/?$ https://%{HTTP_HOST}/about/policies/ [R=301,L,NC]
+  RewriteRule ^blog/price/?$ https://%{HTTP_HOST}/price/ [R=301,L,NC]
+  RewriteRule ^blog/privacy-policy/?$ https://%{HTTP_HOST}/about/privacy-policy/ [R=301,L,NC]
+  RewriteRule ^blog/profacial/?$ https://%{HTTP_HOST}/treatments/facial/profacial/ [R=301,L,NC]
+  RewriteRule ^blog/relax-and-soothing/?$ https://%{HTTP_HOST}/treatments/facial/relax-and-soothing/ [R=301,L,NC]
+  RewriteRule ^blog/reviews/?$ https://%{HTTP_HOST}/reviews/ [R=301,L,NC]
+  RewriteRule ^blog/saunas-therapy-rooms/?$ https://%{HTTP_HOST}/explore/saunas-therapy-rooms/ [R=301,L,NC]
+  RewriteRule ^blog/sitemap/?$ https://%{HTTP_HOST}/sitemap/ [R=301,L,NC]
+  RewriteRule ^blog/skin-plus-facial/?$ https://%{HTTP_HOST}/treatments/facial/skin-plus-facial/ [R=301,L,NC]
+  RewriteRule ^blog/sophia-kim/?$ https://%{HTTP_HOST}/about/sophia-kim/ [R=301,L,NC]
+  RewriteRule ^blog/sports-massage/?$ https://%{HTTP_HOST}/massage-therapy/sports-massage/ [R=301,L,NC]
+  RewriteRule ^blog/subscribe/?$ https://%{HTTP_HOST}/subscribe/ [R=301,L,NC]
+  RewriteRule ^blog/swedish-massage/?$ https://%{HTTP_HOST}/massage-therapy/swedish-massage/ [R=301,L,NC]
+  RewriteRule ^blog/terms-and-conditions/?$ https://%{HTTP_HOST}/about/terms-and-conditions/ [R=301,L,NC]
+  RewriteRule ^blog/treatments/?$ https://%{HTTP_HOST}/treatments/ [R=301,L,NC]
+  RewriteRule ^blog/types-of-facial-treatments-2/?$ https://%{HTTP_HOST}/blog/types-of-facial-treatments/ [R=301,L,NC]
+  RewriteRule ^blog/v-steam/?$ https://%{HTTP_HOST}/treatments/v-steam/ [R=301,L,NC]
+  RewriteRule ^blog/water-drop/?$ https://%{HTTP_HOST}/treatments/facial/water-drop/ [R=301,L,NC]
+  RewriteRule ^blog/women/?$ https://%{HTTP_HOST}/body-scrub/women/ [R=301,L,NC]
+  RewriteRule ^body-scrub-2/?$ https://%{HTTP_HOST}/ [R=301,L,NC]
+  RewriteRule ^cbd-oil-massage/?$ https://%{HTTP_HOST}/massage-therapy/cbd-oil-massage/ [R=301,L,NC]
+  RewriteRule ^charcoal-sauna/?$ https://%{HTTP_HOST}/explore/charcoal-sauna/ [R=301,L,NC]
+  RewriteRule ^contact-us/?$ https://%{HTTP_HOST}/about/contact-us/ [R=301,L,NC]
+  RewriteRule ^day-spa-in-maryland/?$ https://%{HTTP_HOST}/areas-we-serve/day-spa-in-maryland/ [R=301,L,NC]
+  RewriteRule ^day-spa-in-new-jersey/?$ https://%{HTTP_HOST}/areas-we-serve/day-spa-in-new-jersey/ [R=301,L,NC]
+  RewriteRule ^day-spa-in-pennsylvania/?$ https://%{HTTP_HOST}/areas-we-serve/day-spa-in-pennsylvania/ [R=301,L,NC]
+  RewriteRule ^deep-tissue-massage/?$ https://%{HTTP_HOST}/massage-therapy/deep-tissue-massage/ [R=301,L,NC]
+  RewriteRule ^dining-and-refreshments/?$ https://%{HTTP_HOST}/explore/dining/ [R=301,L,NC]
+  RewriteRule ^facial-treatments/?$ https://%{HTTP_HOST}/treatments/facial/ [R=301,L,NC]
+  RewriteRule ^faq/?$ https://%{HTTP_HOST}/about/faq/ [R=301,L,NC]
+  RewriteRule ^gold-aroma-treatment/?$ https://%{HTTP_HOST}/massage-therapy/aromatic-massage/ [R=301,L,NC]
+  RewriteRule ^hinoki-bath/?$ https://%{HTTP_HOST}/ [R=301,L,NC]
+  RewriteRule ^home/?$ https://%{HTTP_HOST}/ [R=301,L,NC]
+  RewriteRule ^hot-stone-massage/?$ https://%{HTTP_HOST}/massage-therapy/hot-stone-massage/ [R=301,L,NC]
+  RewriteRule ^korean-bath-spa/?$ https://%{HTTP_HOST}/explore/korean-bath-spa/ [R=301,L,NC]
+  RewriteRule ^massage/?$ https://%{HTTP_HOST}/massage-therapy/ [R=301,L,NC]
+  RewriteRule ^massage/aromatic-massage/?$ https://%{HTTP_HOST}/massage-therapy/aromatic-massage/ [R=301,L,NC]
+  RewriteRule ^massage/cbd-oil-massage/?$ https://%{HTTP_HOST}/massage-therapy/cbd-oil-massage/ [R=301,L,NC]
+  RewriteRule ^massage/chair-massage/?$ https://%{HTTP_HOST}/massage-therapy/chair-massage/ [R=301,L,NC]
+  RewriteRule ^massage/combo-massage/?$ https://%{HTTP_HOST}/massage-therapy/ [R=301,L,NC]
+  RewriteRule ^massage/foot-massage/?$ https://%{HTTP_HOST}/massage-therapy/foot-massage/ [R=301,L,NC]
+  RewriteRule ^massage/hot-stone-massage/?$ https://%{HTTP_HOST}/massage-therapy/hot-stone-massage/ [R=301,L,NC]
+  RewriteRule ^massage/sports-massage/?$ https://%{HTTP_HOST}/massage-therapy/sports-massage/ [R=301,L,NC]
+  RewriteRule ^policies/?$ https://%{HTTP_HOST}/about/policies/ [R=301,L,NC]
+  RewriteRule ^privacy-policy/?$ https://%{HTTP_HOST}/about/privacy-policy/ [R=301,L,NC]
+  RewriteRule ^saunas-therapy-rooms/?$ https://%{HTTP_HOST}/explore/saunas-therapy-rooms/ [R=301,L,NC]
+  RewriteRule ^terms-and-conditions/?$ https://%{HTTP_HOST}/about/terms-and-conditions/ [R=301,L,NC]
+  RewriteRule ^treatments/24k-gold-facial/?$ https://%{HTTP_HOST}/treatments/facial/24k-gold/ [R=301,L,NC]
+  RewriteRule ^treatments/basic-facial/?$ https://%{HTTP_HOST}/treatments/facial/basic/ [R=301,L,NC]
+  RewriteRule ^treatments/bubble-body/?$ https://%{HTTP_HOST}/treatments/couples/bubble-body/ [R=301,L,NC]
+  RewriteRule ^treatments/cbd-oil-massage/?$ https://%{HTTP_HOST}/massage-therapy/cbd-oil-massage/ [R=301,L,NC]
+  RewriteRule ^treatments/couples-treatments/?$ https://%{HTTP_HOST}/treatments/couples/ [R=301,L,NC]
+  RewriteRule ^treatments/deep-tissue-massage/?$ https://%{HTTP_HOST}/massage-therapy/deep-tissue-massage/ [R=301,L,NC]
+  RewriteRule ^treatments/desembre-oxyjet-elixir-pro-treatment/?$ https://%{HTTP_HOST}/treatments/facial/oxyjet/ [R=301,L,NC]
+  RewriteRule ^treatments/hydrofacial-treatment/?$ https://%{HTTP_HOST}/treatments/facial/hydrofacial/ [R=301,L,NC]
+  RewriteRule ^treatments/relax-and-soothing-facial/?$ https://%{HTTP_HOST}/treatments/facial/relax-and-soothing/ [R=301,L,NC]
+  RewriteRule ^treatments/swedish-massage/?$ https://%{HTTP_HOST}/massage-therapy/swedish-massage/ [R=301,L,NC]
+  RewriteRule ^v-steam-spa-treatment/?$ https://%{HTTP_HOST}/treatments/v-steam/ [R=301,L,NC]
+
+  # WordPress short links (?p=, ?page_id=, ?cat=, ?tag_ID=) -> the page.
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=1123(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/treatments/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=11337(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/treatments/v-steam/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=11359(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/price/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=1170(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/about/contact-us/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=1178(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=11810(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/massage-therapy/deep-tissue-massage/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=11818(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/treatments/facial/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=11849(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/are-led-facial-treatments-safe/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=11971(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/massage-therapy/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=11986(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/massage-therapy/swedish-massage/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=12014(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/treatments/facial/24k-gold/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=12131(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/explore/dining/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=12277(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/health-benefits-of-acupressure/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=12757(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/massage-therapy/hot-stone-massage/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=12763(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/massage-therapy/cbd-oil-massage/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=12784(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/massage-therapy/foot-massage/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=13190(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/best-full-service-day-spa/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=13200(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/how-much-does-it-cost-to-go-to-a-spa/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=13272(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/explore/charcoal-sauna/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=13428(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/massage-therapy/aromatic-massage/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=14631(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/herbs-for-v-steaming/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=14663(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/kingspa-virginia-offers/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=15266(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/infrared-sauna-vs-steam-room-which-is-better/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=15274(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/what-do-you-need-for-a-spa-day/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=16195(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/day-spa-for-men/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=16283(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/about/policies/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=163(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/day-pass/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=16509(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/benefits-of-foot-massage/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=16526(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/treatments/couples/bubble-body/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=16618(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/treatments/facial/basic/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=16648(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/massage-therapy/sports-massage/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=16663(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/massage-therapy/chair-massage/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=16825(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/treatments/facial/hydrofacial/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=16836(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/treatments/facial/relax-and-soothing/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=16890(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/choosing-the-best-massage-therapist/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=16909(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/reviews/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=16954(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/treatments/facial/oxyjet/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=16973(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/where-to-get-a-foot-massage/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=17321(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/treatments/couples/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=17396(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/areas-we-serve/day-spa-in-washington-dc/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=17537(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/areas-we-serve/day-spa-in-west-virginia/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=17634(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=17866(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/subscribe/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=17921(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/areas-we-serve/day-spa-in-pennsylvania/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=17934(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/areas-we-serve/day-spa-in-new-jersey/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=17947(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/areas-we-serve/day-spa-in-maryland/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=17968(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/body-scrub/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=18144(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/body-scrub/women/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=18209(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/body-scrub/women/classic/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=18255(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/body-scrub/women/cbd-oil/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=18285(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/treatments/facial/skin-plus-facial/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=18312(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/treatments/facial/mens-facial/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=18326(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/treatments/facial/profacial/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=18343(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/treatments/facial/water-drop/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=18353(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/treatments/facial/discovery/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=18540(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/treatments/gold-aroma-treatment/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=19099(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/body-scrub/men/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=19157(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/explore/korean-bath-spa/aqua-pool/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=19208(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/explore/korean-bath-spa/outdoor-bade-pool/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=19256(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/explore/korean-bath-spa/bath-house/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=19262(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/explore/korean-bath-spa/hinoki-bath/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=19328(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/body-scrub/men/cbd-oil/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=19344(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/can-body-scrub-remove-dark-spots-king-spa-va/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=19350(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/10-reasons-to-visit-the-spa-for-anxiety-relief/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=19351(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/types-of-facial-treatments/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=2040(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/about/terms-and-conditions/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=20477(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/body-scrub/men/classic/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=20542(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/massage/combo-massage-2/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=20554(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/about/areas-we-serve-2/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=20597(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/body-scrub/men/mens-king-body-scrub/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=21227(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/can-body-scrub-remove-dark-spots-king-spa-va/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=21272(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/what-is-a-korean-bath-house/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=21279(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/infrared-sauna-vs-steam-room-which-is-better/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=21285(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/how-often-should-you-get-a-massage/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=21291(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/types-of-facial-treatments/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=21298(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/benefits-of-korean-body-scrubs/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=21305(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/best-couples-spa-day-ideas/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=21307(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/best-spa-in-northern-virginia/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=21371(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/korean-spa-vs-traditional-spa/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=21377(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/benefits-of-infrared-sauna-therapy/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=21383(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/can-body-scrub-remove-dark-spots-king-spa-va/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=22208(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/about/sophia-kim/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=2462(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/sitemap/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=6740(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/explore/korean-bath-spa/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=771(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/explore/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=818(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/explore/saunas-therapy-rooms/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=825(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/about/faq/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=833(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/about/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=9243(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/about/privacy-policy/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id)=9985(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/vaginal-steaming-pros-and-cons/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)cat=41(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/category/blog/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)cat=49(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/category/blog/korean-spa/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)cat=50(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/category/blog/body-scrubs/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)cat=51(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/category/blog/massage-guides/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)cat=52(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/category/blog/facials/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)cat=53(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/category/blog/plan-your-visit/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)tag_ID=42(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/tag/health-benefits/ [R=301,L,QSD]
+  RewriteCond %{QUERY_STRING} (?:^|&)tag_ID=43(?:&|$)
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/blog/tag/virginia-king-spa/ [R=301,L,QSD]
+  # Any other ?p= / ?page_id= -> home page.
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:p|page_id|cat)=\d+(?:&|$) [NC]
+  RewriteRule ^(?:index\.php)?$ https://%{HTTP_HOST}/ [R=301,L,QSD]
+
+  # WordPress uploads -> the same file here (public/images/wp/...). Resized
+  # copies (photo-300x200.jpg) and WebP twins (photo.jpg.webp) -> the original.
+  RewriteRule ^wp-content/uploads/elementor/google-fonts/fonts/(.+)$ https://%{HTTP_HOST}/fonts/$1 [R=301,L,NC]
+  RewriteCond %{DOCUMENT_ROOT}/images/wp/$1 -f
+  RewriteRule ^wp-content/uploads/(.+)$ https://%{HTTP_HOST}/images/wp/$1 [R=301,L]
+  RewriteCond %{DOCUMENT_ROOT}/images/wp/$1$3 -f
+  RewriteRule ^wp-content/uploads/(.+?)(-\d+x\d+)?(\.(?:jpe?g|png|gif|webp|svg))(?:\.webp)?$ https://%{HTTP_HOST}/images/wp/$1$3 [R=301,L,NC]
+
+  # WordPress / Rank Math sitemaps -> the real sitemap.
+  RewriteRule ^(?:sitemap_index|wp-sitemap|[a-z_-]+-sitemap\d*|wp-sitemap-[a-z0-9_-]+)\.xml$ https://%{HTTP_HOST}/sitemap.xml [R=301,L,NC]
+  RewriteRule ^main-sitemap\.xsl$ https://%{HTTP_HOST}/sitemap.xml [R=301,L,NC]
+
+  # WordPress-only addresses: 410 Gone, so search engines drop them.
+  RewriteRule ^(?:wp-admin|wp-includes|wp-json|wp-content)(?:/|$) - [G,L,NC]
+  RewriteRule ^(?:wp-login|xmlrpc|wp-cron|wp-signup|wp-trackback|wp-comments-post|wp-links-opml)\.php$ - [G,L,NC]
+  RewriteRule ^(?:.+/)?(?:feed|rss2?|atom|trackback|embed)/?$ - [G,L,NC]
+  RewriteRule ^(?:author|comments)/ - [G,L,NC]
+  RewriteCond %{QUERY_STRING} (?:^|&)(?:rest_route|feed|attachment_id|author)= [NC]
+  RewriteRule ^(?:index\.php)?$ - [G,L]
+  # ---- end of old URLs ----
+
+  # Pages live at /page/ (page/index.html): add the missing slash, on https
+  # (absolute, so visitors behind Cloudflare are not bounced through http).
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^(.*[^/])$ https://%{HTTP_HOST}/$1/ [R=301,L]
+
+  # The Sanity Studio is one page; its inner URLs (/cms/structure/...) load it.
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^cms/. /cms/index.html [L]
+</IfModule>
+
+# Never served: the upload tool's file list and the form settings.
+<FilesMatch "^(\.ftp-deploy-sync-state\.json|\.config\.php|\.htaccess)$">
+  Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), browsing-topics=()"
+  Header always set Strict-Transport-Security "max-age=31536000"
+
+  # CSP: the site's own files plus what the pages really load: Google Tag
+  # Manager (GA4 G-TJDCTQ1MP2, Google Ads) and the gtag for UA-210625545-1,
+  # Meta Pixel, Hotjar, Clixtell, Ahrefs, Klaviyo, Google reCAPTCHA and Maps,
+  # YouTube, the Elfsight reviews widget and AddToAny. If a new tag is added in
+  # Tag Manager that loads another domain, add the domain here.
+  # The studio at /cms talks to many Sanity hosts and is protected by Sanity login instead.
+  <If "%{REQUEST_URI} !~ m#^/cms(/|$)#">
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://*.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://*.doubleclick.net https://pagead2.googlesyndication.com https://*.googlesyndication.com https://www.google.com https://www.gstatic.com https://connect.facebook.net https://static.hotjar.com https://script.hotjar.com https://*.hotjar.com https://scripts.clixtell.com https://*.clixtell.com https://analytics.ahrefs.com https://static.klaviyo.com https://*.klaviyo.com https://elfsightcdn.com https://*.elfsight.com https://*.elfsightcdn.com https://static.addtoany.com https://www.youtube.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.cdnfonts.com https://*.klaviyo.com https://*.elfsight.com https://*.elfsightcdn.com https://static.addtoany.com https://www.gstatic.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com https://fonts.cdnfonts.com https://*.klaviyo.com https://*.elfsight.com https://*.elfsightcdn.com; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://www.google.com https://*.doubleclick.net https://www.googleadservices.com https://*.googlesyndication.com https://adservice.google.com https://cct.google https://www.facebook.com https://*.facebook.com https://*.hotjar.com https://*.hotjar.io wss://*.hotjar.com https://*.clixtell.com https://analytics.ahrefs.com https://*.klaviyo.com https://*.elfsight.com https://*.elfsightcdn.com https://static.addtoany.com https://www.youtube.com; frame-src 'self' https://www.google.com https://maps.google.com https://www.youtube.com https://www.youtube-nocookie.com https://www.googletagmanager.com https://*.doubleclick.net https://td.doubleclick.net https://www.facebook.com https://*.hotjar.com https://*.klaviyo.com https://*.elfsight.com https://*.elfsightcdn.com https://static.addtoany.com; media-src 'self' blob: https:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self' https://www.facebook.com; frame-ancestors 'self'; upgrade-insecure-requests"
+  </If>
+
+  # Caching: build files with hashed names forever, page stylesheets (versioned
+  # ?v=), fonts for a year, photos for a month, pages always fresh.
+  <FilesMatch "\.(js|css|woff2?)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+  <FilesMatch "\.(webp|avif|jpe?g|png|gif|svg|ico)$">
+    Header set Cache-Control "public, max-age=2592000"
+  </FilesMatch>
+  <FilesMatch "\.(html|txt|xml|json)$">
+    Header set Cache-Control "public, max-age=0, must-revalidate"
+  </FilesMatch>
+</IfModule>
+
+<IfModule mod_mime.c>
+  AddType image/webp .webp
+  AddType font/woff2 .woff2
+  AddType text/javascript .js .mjs
+  AddType text/plain .txt
+  AddType application/manifest+json .webmanifest
+</IfModule>
+
+# Compress text files. Apache serves .js as text/javascript, so both JavaScript types are listed.
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css text/javascript application/javascript application/json application/manifest+json image/svg+xml text/xml application/xml text/plain
+</IfModule>

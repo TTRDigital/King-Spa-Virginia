@@ -1,0 +1,57 @@
+# Loads the site's built-in content and photos into Sanity, so /cms starts
+# full. Run it from the browser: Actions > "Load content into Sanity" > Run
+# workflow. Nothing to install or run on a computer.
+#
+# Needs the repository variable SANITY_PROJECT_ID and the repository secret
+# SANITY_WRITE_TOKEN (Settings > Secrets and variables > Actions): an Editor
+# token from sanity.io/manage > project > API > Tokens. Delete or rotate the
+# token once the content is loaded.
+name: Load content into Sanity
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "add-missing: only create what is not in Sanity yet. overwrite: replace with the built-in content. dry-run: check only, write nothing."
+        type: choice
+        options: [add-missing, overwrite, dry-run]
+        default: add-missing
+      only:
+        description: "Optional: only documents whose ID starts with these, comma-separated (e.g. page-_home,page-blog_,siteChrome). Empty = everything."
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Load content
+        env:
+          SANITY_WRITE_TOKEN: ${{ secrets.SANITY_WRITE_TOKEN }}
+          NEXT_PUBLIC_KSV_SANITY_PROJECT_ID: ${{ vars.SANITY_PROJECT_ID }}
+          NEXT_PUBLIC_KSV_SANITY_DATASET: production
+          MODE: ${{ inputs.mode }}
+          ONLY: ${{ inputs.only }}
+        run: |
+          if [ "$MODE" != "dry-run" ] && { [ -z "$SANITY_WRITE_TOKEN" ] || [ -z "$NEXT_PUBLIC_KSV_SANITY_PROJECT_ID" ]; }; then
+            echo "::error::Add the SANITY_PROJECT_ID variable and the SANITY_WRITE_TOKEN secret first (Settings > Secrets and variables > Actions)."
+            exit 1
+          fi
+          case "$MODE" in
+            overwrite) npm run seed -- --force ${ONLY:+--only=$ONLY} ;;
+            dry-run) npm run seed -- --dry-run ${ONLY:+--only=$ONLY} ;;
+            *) npm run seed -- ${ONLY:+--only=$ONLY} ;;
+          esac

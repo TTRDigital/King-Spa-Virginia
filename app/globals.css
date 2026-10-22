@@ -1,0 +1,14 @@
+/*
+ * The pages are styled by the live site's own stylesheet (public/css/<page>.css,
+ * see lib/page-html.ts). Tailwind is here for this project's own components,
+ * prefixed `tw:` so it can never clash with WordPress/Elementor class names,
+ * and without Preflight so it does not reset the theme's base styles.
+ */
+@import "tailwindcss/theme.css" layer(theme) prefix(tw);
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
+@source "../components";
+
+/* The page wrapper carries WordPress's body classes (.ks-body.home, .ks-body.single-post, ...). */
+.ks-body {
+  min-height: 100vh;
+}

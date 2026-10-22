@@ -1,0 +1,92 @@
+# Builds the static site and uploads it to SiteGround over FTPS.
+# Runs on every push, when Sanity publishes (webhook -> repository_dispatch),
+# and from Actions > "Deploy to SiteGround" > Run workflow.
+#
+# Repository secrets (Settings > Secrets and variables > Actions > Secrets):
+#   SG_FTP_SERVER    FTP host from SiteGround Site Tools > Site > FTP Accounts
+#   SG_FTP_USERNAME  FTP account whose home folder contains public_html
+#   SG_FTP_PASSWORD
+#   FORM_TO_EMAIL    where form submissions go (comma-separated for several)
+#   RECAPTCHA_SECRET_ELEMENTOR / RECAPTCHA_SECRET_CF7  (optional) secret keys of the
+#                    newsletter and review-form reCAPTCHA site keys
+#   KLAVIYO_LIST_ID  (optional) Klaviyo list for newsletter sign-ups
+# Repository variables (Settings > Secrets and variables > Actions > Variables):
+#   SANITY_PROJECT_ID  the Sanity project (until set, the site builds from its built-in content)
+#   SG_FTP_DIR         (optional) folder the site goes into, default ./public_html/
+name: Deploy to SiteGround
+
+on:
+  push:
+    branches: [claude/charming-feynman-y7u1sg, main]
+  repository_dispatch:
+    types: [sanity-publish]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-siteground
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # At job level so the steps' `if:` checks can see them.
+    env:
+      SG_FTP_SERVER: ${{ secrets.SG_FTP_SERVER }}
+      NEXT_PUBLIC_KSV_SANITY_PROJECT_ID: ${{ vars.SANITY_PROJECT_ID }}
+      NEXT_PUBLIC_KSV_SANITY_DATASET: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # WebP copies of the photos only change when the photos do.
+      - name: Reuse WebP copies
+        uses: actions/cache@v4
+        with:
+          path: public/_img
+          key: img-${{ hashFiles('public/images/**') }}
+          restore-keys: img-
+
+      - name: Build static site
+        run: npm run build
+
+      - name: Form settings
+        env:
+          FORM_TO_EMAIL: ${{ secrets.FORM_TO_EMAIL }}
+          RECAPTCHA_SECRET_ELEMENTOR: ${{ secrets.RECAPTCHA_SECRET_ELEMENTOR }}
+          RECAPTCHA_SECRET_CF7: ${{ secrets.RECAPTCHA_SECRET_CF7 }}
+          KLAVIYO_LIST_ID: ${{ secrets.KLAVIYO_LIST_ID }}
+        run: node scripts/form-config.mjs out/api/.config.php
+
+      # Download from the run page for a manual upload (no secrets in it: the form settings are left out).
+      - name: Keep a copy of the site
+        uses: actions/upload-artifact@v4
+        with:
+          name: king-spa-virginia-site
+          path: |
+            out/
+            !out/api/.config.php
+          include-hidden-files: true
+          retention-days: 14
+
+      - name: Upload to SiteGround
+        # Skipped (build check only) until the FTP secrets are added.
+        if: env.SG_FTP_SERVER != ''
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.SG_FTP_SERVER }}
+          username: ${{ secrets.SG_FTP_USERNAME }}
+          password: ${{ secrets.SG_FTP_PASSWORD }}
+          protocol: ftps
+          local-dir: ./out/
+          # The FTP account's home is the site folder (Home Path "/" in Site Tools), so files go into public_html.
+          server-dir: ${{ vars.SG_FTP_DIR || './public_html/' }}
