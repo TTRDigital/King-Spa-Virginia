@@ -11,8 +11,8 @@ import type { Attrs, ButtonWidget, Column, ElDocument, ImageWidget, Section, Wid
  * unchanged. The result is one HTML string per page region.
  *
  * Images are swapped for WebP copies at several widths (scripts/optimize-images.mjs);
- * the first images of the page load right away with high priority, every
- * other image is lazy-loaded.
+ * their other attributes (alt, loading, fetchpriority, decoding) stay as the
+ * live site wrote them.
  */
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
@@ -50,11 +50,6 @@ export function responsive(src: string): { src: string; srcset: string; width: n
   return { src: imageLoader({ src, width: Math.min(top, 1200) }), srcset: parts.join(", "), width: w };
 }
 
-/** A local photo's real width and height, when known. */
-export function photoSize(src: string): [number, number] | null {
-  return sizes()[src] ?? null;
-}
-
 /** WebP copy for CSS backgrounds. */
 export function bgUrl(src: string): string {
   if (!sizes()[src] || !/\.(jpe?g|png|webp)$/i.test(src)) return src;
@@ -72,7 +67,7 @@ function parseAttrs(s: string): [string, string][] {
 const unescapeAttr = (s: string) => s.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
 
 /** Rewrites every <img> and inline background in a chunk of HTML. */
-export function optimizeHtml(html: string, state: Ctx): string {
+export function optimizeHtml(html: string): string {
   html = html.replace(/<img\b([^>]*?)\/?>/gi, (_m, inner: string) => {
     const attrs = new Map(parseAttrs(inner).map(([k, v]) => [k.toLowerCase(), unescapeAttr(v)] as [string, string]));
     const src = attrs.get("src") ?? "";
@@ -85,37 +80,15 @@ export function optimizeHtml(html: string, state: Ctx): string {
         attrs.set("sizes", `(max-width: ${w}px) 100vw, ${w}px`);
       }
     }
-    attrs.delete("loading");
-    attrs.delete("fetchpriority");
-    if (state.eager > 0) {
-      state.eager--;
-      // Only the first large photo gets high priority (not decorations, never the logo).
-      if (!state.highUsed && r && Math.max(Number(attrs.get("width")) || 0, r.width) >= 600) {
-        attrs.set("fetchpriority", "high");
-        state.highUsed = true;
-      }
-    } else {
-      attrs.set("loading", "lazy");
-    }
-    if (!attrs.has("decoding")) attrs.set("decoding", "async");
-    if (!attrs.has("alt")) attrs.set("alt", "");
     return `<img${[...attrs].map(([k, v]) => (v === "" && k !== "alt" ? ` ${k}` : ` ${k}="${esc(v)}"`)).join("")}>`;
   });
   html = html.replace(/url\((['"]?)(\/images\/[^'")]+)\1\)/g, (_m, q: string, u: string) => `url(${q}${bgUrl(u)}${q})`);
-  // Bitmaps inside SVG icons (512px originals shown at icon size): the 256px WebP copy, loaded
-  // when the icon comes near the screen (data-ks-href, set as href by lib/runtime/media.ts).
-  html = html.replace(/\s(?:xlink:)?href="(\/images\/icons\/[^"]+\.png)"/g, (m, u: string) => (sizes()[u] ? ` data-ks-href="${imageLoader({ src: u, width: 256 })}"` : m));
+  // Bitmaps inside SVG icons (512px originals shown at icon size): the 256px WebP copy.
+  html = html.replace(/(\s(?:xlink:)?href=")(\/images\/icons\/[^"]+\.png)"/g, (m, a: string, u: string) => (sizes()[u] ? `${a}${imageLoader({ src: u, width: 256 })}"` : m));
   return html;
 }
 
 /* ---------- Elementor tree -> HTML ---------- */
-
-/**
- * eager: how many images still load right away; highUsed: the high-priority image is taken;
- * lazyBgFrom: top-level sections from this index on wait for their background photos until
- * they come near the screen (class ks-lazy-bg, see app/globals.css and lib/runtime/media.ts).
- */
-type Ctx = { eager: number; highUsed?: boolean; lazyBgFrom?: number; sections?: number };
 
 function button(b: ButtonWidget): string {
   const icon = b.icon !== null ? `<span class="${b.iconCls}">${b.icon}</span>` : "";
@@ -137,8 +110,8 @@ function image(i: ImageWidget): string {
   return i.link ? `<a${attrStr(i.link)}>${img}</a>` : img;
 }
 
-function widgetInner(w: Widget, ctx: Ctx): string {
-  if (w.doc) return document(w.doc, ctx, false);
+function widgetInner(w: Widget): string {
+  if (w.doc) return document(w.doc);
   if (w.heading) {
     const h = w.heading;
     return `<${h.tag} class="${h.cls}"${attrStr(h.attrs)}>${h.html}</${h.tag}>`;
@@ -149,33 +122,29 @@ function widgetInner(w: Widget, ctx: Ctx): string {
   return w.html ?? "";
 }
 
-function widget(w: Widget, ctx: Ctx): string {
-  const inner = widgetInner(w, ctx);
+function widget(w: Widget): string {
+  const inner = widgetInner(w);
   const body = w.noContainer ? inner : `<div class="elementor-widget-container">${inner}</div>`;
   return `<div class="${w.cls}"${attrStr(w.attrs)}>${body}</div>`;
 }
 
-function column(c: Column, ctx: Ctx): string {
-  const kids = c.children.map((x) => (x._type === "section" ? section(x, ctx) : widget(x, ctx))).join("");
+function column(c: Column): string {
+  const kids = c.children.map((x) => (x._type === "section" ? section(x) : widget(x))).join("");
   return `<div class="${c.cls}"${attrStr(c.attrs)}><div class="${c.wrapCls}">${c.pre ?? ""}${kids}</div></div>`;
 }
 
-function section(s: Section, ctx: Ctx, top = false): string {
-  const lazy = top && ctx.lazyBgFrom !== undefined && (ctx.sections = (ctx.sections ?? 0) + 1) > ctx.lazyBgFrom;
-  const cols = s.columns.map((c) => column(c, ctx)).join("");
-  return `<${s.tag} class="${s.cls}${lazy ? " ks-lazy-bg" : ""}"${attrStr(s.attrs)}>${s.pre ?? ""}<div class="${s.containerCls}">${cols}</div></${s.tag}>`;
+function section(s: Section): string {
+  const cols = s.columns.map(column).join("");
+  return `<${s.tag} class="${s.cls}"${attrStr(s.attrs)}>${s.pre ?? ""}<div class="${s.containerCls}">${cols}</div></${s.tag}>`;
 }
 
-/** top: a page-level document (not a post embedded in a widget), whose sections count for lazyBgFrom. */
-export function document(d: ElDocument, ctx: Ctx, top = true): string {
-  const sections = d.sections.map((s) => section(s, ctx, top)).join("");
+export function document(d: ElDocument): string {
+  const sections = d.sections.map(section).join("");
   return d.bare ? sections : `<div class="${d.cls}"${attrStr(d.attrs)}>${sections}</div>`;
 }
 
 /** Shell markup with each `<div data-ks-doc="n"></div>` replaced by Elementor document n. */
-export function region(shell: string, docs: ElDocument[], ctx: Ctx): string {
-  const html = shell.replace(/<div data-ks-doc="(\d+)"><\/div>/g, (_m, n: string) => (docs[Number(n)] ? document(docs[Number(n)], ctx) : ""));
-  return optimizeHtml(html, ctx);
+export function region(shell: string, docs: ElDocument[]): string {
+  const html = shell.replace(/<div data-ks-doc="(\d+)"><\/div>/g, (_m, n: string) => (docs[Number(n)] ? document(docs[Number(n)]) : ""));
+  return optimizeHtml(html);
 }
-
-export type RenderCtx = Ctx;

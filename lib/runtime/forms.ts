@@ -1,4 +1,4 @@
-import { $, $$, loadScript, whenVisible } from "./dom";
+import { $, $$, loadScript } from "./dom";
 
 /*
  * The site's forms post to /api/form.php (public/api/form.php), which emails
@@ -7,7 +7,8 @@ import { $, $$, loadScript, whenVisible } from "./dom";
  * - Contact Form 7: the private feedback form on /reviews/
  * - the comment form on /about/sophia-kim/
  * Messages are the plugins' own default texts. Google reCAPTCHA v2 checkboxes
- * (same site keys as the live site) load when a form comes near the screen.
+ * (same site keys as the live site) are drawn when the script starts, from the
+ * reCAPTCHA script at the end of the page (components/Analytics.tsx), as on the live site.
  */
 
 const ENDPOINT = "/api/form.php";
@@ -19,6 +20,8 @@ let recaptchaReady: Promise<void> | null = null;
 function loadRecaptcha(): Promise<void> {
   if (!recaptchaReady)
     recaptchaReady = new Promise((resolve) => {
+      const g = grecaptcha();
+      if (g?.ready) return g.ready(resolve);
       (window as unknown as { ksRecaptchaLoaded: () => void }).ksRecaptchaLoaded = () => resolve();
       void loadScript("https://www.google.com/recaptcha/api.js?onload=ksRecaptchaLoaded&render=explicit");
     });
@@ -30,13 +33,9 @@ function captcha(form: HTMLElement): () => string | null {
   const boxes = $$(".elementor-g-recaptcha, .g-recaptcha, .wpcf7-recaptcha", form).filter((b) => b.dataset.sitekey);
   if (!boxes.length) return () => null;
   const ids: number[] = [];
-  // Keep the checkbox's space from the start, as the live page has it on load.
-  for (const b of boxes) if ((b.dataset.size || "normal") === "normal") b.style.minHeight = "78px";
-  whenVisible(form, () =>
-    void loadRecaptcha().then(() => {
-      for (const b of boxes) ids.push(grecaptcha()!.render(b, { sitekey: b.dataset.sitekey!, size: b.dataset.size || "normal", theme: b.dataset.theme || "light" }));
-    }),
-  );
+  void loadRecaptcha().then(() => {
+    for (const b of boxes) ids.push(grecaptcha()!.render(b, { sitekey: b.dataset.sitekey!, size: b.dataset.size || "normal", theme: b.dataset.theme || "light" }));
+  });
   return () => (ids.length ? grecaptcha()!.getResponse(ids[0]) : "");
 }
 

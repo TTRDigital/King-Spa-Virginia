@@ -35,17 +35,20 @@ copy alone.
 3. `next build` — static export into `out/`.
 4. `scripts/strip-next-runtime.mjs` — removes Next.js's browser scripts from the
    website's pages (they are static HTML plus the runtime above; the Studio at
-   `/cms` keeps them). The build fails if any are left.
+   `/cms` keeps them) and puts the third-party scripts in place (`<head>`, start
+   and end of `<body>`). The build fails if any Next.js scripts are left.
 
 `out/` is what goes to SiteGround's `public_html`.
 
-### Speed
+### Loading
 
-Hero photo preloaded (high priority, right size per screen), heading and text fonts
-preloaded, other photos lazy-loaded, section backgrounds further down load when
-they come near the screen, YouTube videos and the analytics tags start after the
-page has loaded, no React in the browser. Lighthouse (mobile) scores are in the
-handover report.
+Pages load the way the live site does: images keep the live site's own `loading` /
+`fetchpriority` attributes, section backgrounds, sliders, videos, the reviews widget,
+reCAPTCHA and the popup start when the page starts, and the third-party tags load
+straight away from the same places in the page. On top of that: photos are WebP
+copies at the right size per screen, the hero photo and the two main fonts are
+preloaded, and there is no React in the browser. Lighthouse (mobile) scores are in
+the handover report.
 
 ## Run it locally
 
@@ -58,6 +61,7 @@ npm run lint && npm run typecheck
 ```
 
 `NEXT_PUBLIC_DISABLE_TAGS=1` in `.env.local` keeps the analytics tags off while testing.
+The tags are only added by `npm run build`, so `npm run dev` never sends any.
 
 ## Sanity
 
@@ -141,6 +145,9 @@ needs to change.
 - Fonts ship Latin only (latin-ext is not used by any text on the site).
 - Old URLs: add a line to the "Old URLs" block of `public/.htaccess`, above the
   slash rule.
-- Analytics tags (Tag Manager, gtag, Meta Pixel, Hotjar, Clixtell, Ahrefs, Klaviyo)
-  are in `components/Analytics.tsx`; Tag Manager adds GA4 and Google Ads. A new tag
+- The third-party scripts (Tag Manager, gtag, Meta Pixel, Hotjar, Clixtell, Ahrefs,
+  Klaviyo, AddToAny, reCAPTCHA) are copied word for word from the live site into
+  `components/Analytics.tsx`; Tag Manager adds GA4 and Google Ads. A new tag
   domain must also be added to the Content-Security-Policy in `.htaccess`.
+- Alt text is exactly the live site's: images with no alt text there have none here.
+  Editors can add it in the Studio.

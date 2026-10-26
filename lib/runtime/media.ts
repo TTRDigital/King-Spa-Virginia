@@ -1,9 +1,8 @@
-import { $, $$, afterLoad, device, libDevice, loadScript, settings, visibleOrIdle, whenVisible } from "./dom";
+import { $, $$, device, libDevice, loadScript, settings, whenVisible } from "./dom";
 
 /*
  * Galleries (Elementor "e-gallery" masonry), the image lightbox, YouTube
- * videos (background videos start after the page has loaded), the Elfsight
- * reviews widget, AddToAny and Elementor popups.
+ * videos, the Elfsight reviews widget and Elementor popups.
  */
 
 /* ---------- e-gallery masonry (same maths as e-gallery.min.js) ---------- */
@@ -143,7 +142,7 @@ function lightbox() {
 
 const ytId = (url: string) => url.match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([\w-]{11})/)?.[1] ?? null;
 
-/** Section background videos: started after the page has loaded (Elementor's behaviour, deferred). */
+/** Section background videos: started when the script starts, as Elementor does. */
 function backgroundVideos() {
   for (const sec of $$("[data-element_type='section']")) {
     const s = settings<{ background_video_link?: string; background_video_start?: number; background_video_end?: number; background_play_on_mobile?: string; background_play_once?: string }>(sec);
@@ -152,32 +151,30 @@ function backgroundVideos() {
     if (!box || (device() === "mobile" && s.background_play_on_mobile !== "yes")) continue;
     const id = ytId(s.background_video_link);
     if (!id) continue;
-    afterLoad(() => {
-      const q = new URLSearchParams({ autoplay: "1", mute: "1", controls: "0", loop: s.background_play_once === "yes" ? "0" : "1", playlist: id, playsinline: "1", rel: "0", modestbranding: "1", enablejsapi: "0" });
-      if (s.background_video_start) q.set("start", String(s.background_video_start));
-      if (s.background_video_end) q.set("end", String(s.background_video_end));
-      const f = document.createElement("iframe");
-      f.className = "elementor-background-video-embed";
-      f.title = "Background video";
-      f.allow = "autoplay; encrypted-media";
-      f.setAttribute("frameborder", "0");
-      f.src = `https://www.youtube.com/embed/${id}?${q}`;
-      box.appendChild(f);
-      const fit = () => {
-        // Cover the section with a 16:9 frame, as Elementor does.
-        const w = box.clientWidth;
-        const h = box.clientHeight;
-        const ratio = 16 / 9;
-        const [fw, fh] = w / h > ratio ? [w, w / ratio] : [h * ratio, h];
-        Object.assign(f.style, { width: `${fw}px`, height: `${fh}px`, maxWidth: "none", position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)" });
-      };
-      fit();
-      addEventListener("resize", fit);
-    });
+    const q = new URLSearchParams({ autoplay: "1", mute: "1", controls: "0", loop: s.background_play_once === "yes" ? "0" : "1", playlist: id, playsinline: "1", rel: "0", modestbranding: "1", enablejsapi: "0" });
+    if (s.background_video_start) q.set("start", String(s.background_video_start));
+    if (s.background_video_end) q.set("end", String(s.background_video_end));
+    const f = document.createElement("iframe");
+    f.className = "elementor-background-video-embed";
+    f.title = "Background video";
+    f.allow = "autoplay; encrypted-media";
+    f.setAttribute("frameborder", "0");
+    f.src = `https://www.youtube.com/embed/${id}?${q}`;
+    box.appendChild(f);
+    const fit = () => {
+      // Cover the section with a 16:9 frame, as Elementor does.
+      const w = box.clientWidth;
+      const h = box.clientHeight;
+      const ratio = 16 / 9;
+      const [fw, fh] = w / h > ratio ? [w, w / ratio] : [h * ratio, h];
+      Object.assign(f.style, { width: `${fw}px`, height: `${fh}px`, maxWidth: "none", position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)" });
+    };
+    fit();
+    addEventListener("resize", fit);
   }
 }
 
-/** Video widgets: the YouTube player is added when the video comes near the screen. */
+/** Video widgets: the YouTube player is added when the script starts (or on a tap on the image overlay), as Elementor does. */
 function videoWidgets() {
   for (const w of $$(".elementor-widget-video")) {
     const s = settings<{ youtube_url?: string; autoplay?: string; mute?: string; loop?: string; controls?: string; start?: number; end?: number; lightbox?: string }>(w);
@@ -213,7 +210,7 @@ function videoWidgets() {
         embed();
         overlay.remove();
       });
-    } else afterLoad(() => whenVisible(w, embed, "200px"));
+    } else embed();
   }
 }
 
@@ -222,13 +219,8 @@ function videoWidgets() {
 function elfsight() {
   const el = $("[class*='elfsight-app-']");
   if (!el) return;
-  // Live loads the widget with the page; here when it nears the screen or the page is idle.
-  visibleOrIdle(el, () => void loadScript("https://elfsightcdn.com/platform.js"));
-}
-
-function addToAny() {
-  if (!$(".a2a_kit")) return;
-  afterLoad(() => void loadScript("https://static.addtoany.com/menu/page.js", { defer: "" }));
+  // The page's own loader script (in the widget, as on the live site) normally does it.
+  if (!document.querySelector("script[src*='elfsight']")) void loadScript("https://elfsightcdn.com/platform.js");
 }
 
 /* ---------- Elementor popups (page-load trigger, shown on every visit as on the live site) ---------- */
@@ -257,41 +249,20 @@ function popups() {
     });
     const open = () => {
       p.style.display = "";
-      p.classList.add("ks-popup-open");
       $(".dialog-widget-content", p)?.classList.add("fadeIn");
       // "Accessible navigation": Elementor moves keyboard focus into the popup (its close button).
       if (s.a11y_navigation === "yes") $<HTMLElement>(".dialog-close-button", p)?.focus({ preventScroll: true });
     };
-    // Open already (no delay, see lib/page-html.ts), or Elementor's way: when its script starts, after the set delay.
-    if (p.style.display !== "none") open();
-    else window.setTimeout(open, Number(s.triggers?.page_load_delay || 0) * 1000);
-  }
-}
-
-/** Section backgrounds held back by .ks-lazy-bg (lib/render.ts): load them near the screen, or once the page is idle. */
-function lazyBackgrounds() {
-  for (const s of $$(".ks-lazy-bg")) visibleOrIdle(s, () => s.classList.remove("ks-lazy-bg"));
-}
-
-/** Bitmaps inside SVG icons, held back as data-ks-href (lib/render.ts): load them near the screen, or once the page is idle. */
-function lazySvgImages() {
-  for (const img of $$<SVGImageElement>("image[data-ks-href]")) {
-    visibleOrIdle(img.closest("svg") ?? img, () => {
-      const href = img.dataset.ksHref ?? "";
-      img.setAttribute("href", href);
-      img.setAttributeNS("http://www.w3.org/1999/xlink", "xlink:href", href);
-    });
+    // Elementor's way: when its script starts, after the set delay.
+    window.setTimeout(open, Number(s.triggers?.page_load_delay || 0) * 1000);
   }
 }
 
 export function initMedia() {
-  lazyBackgrounds();
-  lazySvgImages();
   for (const w of $$(".elementor-widget-gallery")) gallery(w);
   lightbox();
   backgroundVideos();
   videoWidgets();
   elfsight();
-  addToAny();
   popups();
 }

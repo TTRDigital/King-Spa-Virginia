@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import postcss from "postcss";
-import { document, optimizeHtml, photoSize, region } from "@/lib/render";
+import { document, optimizeHtml, region } from "@/lib/render";
 import redirectedPosts from "@/lib/data/redirected-posts.json";
 import type { Chrome, Column, PageData, Section, Widget } from "@/lib/types";
 
@@ -14,27 +14,17 @@ import type { Chrome, Column, PageData, Section, Widget } from "@/lib/types";
  */
 
 /**
- * Elementor popup shown on page load, in the wrapper Elementor's script builds for it. One that
- * opens with no delay is open in the HTML already (the runtime adds closing and focus), so it is in
- * the first paint, its photo loading right away; others stay hidden until the runtime opens them.
+ * Elementor popup shown on page load, in the wrapper Elementor's script builds for it. Hidden until
+ * the runtime opens it, as Elementor does: when its script starts, after the popup's set delay.
  */
 function popupHtml(p: Chrome["popups"][number]): string {
-  const t = (p.settings as { triggers?: { page_load?: string; page_load_delay?: number } }).triggers;
-  const open = t?.page_load === "yes" && !Number(t.page_load_delay || 0);
   // Photo sized for the popup box (820px wide on the live site, full width on phones).
-  const ctx = { eager: open ? 99 : 0, highUsed: true };
-  // width/height (the photo's own) so the box keeps its shape while the photo loads (its CSS sets height:auto).
-  const sized = document(p.doc, ctx).replace(/<img\b([^>]*?)\s*\/?>/g, (m, attrs: string) => {
-    const src = / src="([^"]+)"/.exec(attrs)?.[1];
-    const size = src && !/\swidth=/.test(attrs) ? photoSize(src) : null;
-    return size ? `<img${attrs} width="${size[0]}" height="${size[1]}">` : m;
-  });
-  const doc = optimizeHtml(sized, ctx)
+  const doc = optimizeHtml(document(p.doc))
     .replace(/sizes="[^"]*"/g, 'sizes="(max-width: 820px) 100vw, 820px"')
     .replace('class="elementor elementor-', 'style="display: block;" class="elementor elementor-');
   return (
-    `<div class="dialog-widget dialog-lightbox-widget dialog-type-buttons dialog-type-lightbox elementor-popup-modal${open ? " ks-popup-open" : ""}" id="elementor-popup-modal-${p.id}" aria-modal="true" role="document" tabindex="0"${open ? "" : ' style="display:none"'} data-ks-popup='${JSON.stringify(p.settings).replace(/'/g, "&#39;")}'>` +
-    `<div class="dialog-widget-content dialog-lightbox-widget-content animated${open ? " fadeIn" : ""}"><a role="button" tabindex="0" aria-label="Close" href="#" class="dialog-close-button dialog-lightbox-close-button"><i class="eicon-close"></i></a>` +
+    `<div class="dialog-widget dialog-lightbox-widget dialog-type-buttons dialog-type-lightbox elementor-popup-modal" id="elementor-popup-modal-${p.id}" aria-modal="true" role="document" tabindex="0" style="display:none" data-ks-popup='${JSON.stringify(p.settings).replace(/'/g, "&#39;")}'>` +
+    `<div class="dialog-widget-content dialog-lightbox-widget-content animated"><a role="button" tabindex="0" aria-label="Close" href="#" class="dialog-close-button dialog-lightbox-close-button"><i class="eicon-close"></i></a>` +
     `<div class="dialog-header dialog-lightbox-header"></div><div class="dialog-message dialog-lightbox-message">${doc}</div><div class="dialog-buttons-wrapper dialog-lightbox-buttons-wrapper"></div></div></div>`
   );
 }
@@ -70,16 +60,13 @@ function markCurrent(header: string, page: PageData): string {
 }
 
 export function pageHtml(page: PageData, chrome: Chrome): string {
-  // With a hero background photo (preloaded by the page), that photo is the one that loads first:
-  // the images below it wait (only the first loads right away, none with high priority).
-  const hero = heroBackground(page) !== null;
-  let content = region(page.shell, page.docs, { eager: hero ? 1 : 3, highUsed: hero, lazyBgFrom: 2 });
+  let content = region(page.shell, page.docs);
   const dates = postDates(page);
   if (dates) content = content.replace(/(<h1\b[^>]*>[\s\S]*?<\/h1>)/, `$1${dates}`);
   const popups = activePopups(chrome).map(popupHtml).join("");
   if (page.canvas) return content + popups;
-  const header = markCurrent(region(chrome.header.shell, chrome.header.docs, { eager: 1 }), page);
-  const footer = region(chrome.footer.shell, chrome.footer.docs, { eager: 0, lazyBgFrom: 0 });
+  const header = markCurrent(region(chrome.header.shell, chrome.header.docs), page);
+  const footer = region(chrome.footer.shell, chrome.footer.docs);
   return `<a class="skip-link screen-reader-text" href="#content">Skip to content</a><div class="hfeed site" id="page">${header}${content}${footer}</div>${popups}`;
 }
 
