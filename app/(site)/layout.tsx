@@ -1,15 +1,12 @@
 import "../globals.css";
-import { BodyTags, FootTags, HeadTags } from "@/components/Analytics";
-import { WpEmoji } from "@/components/WpEmoji";
+import { HeadTags } from "@/components/Analytics";
 
+/* The page-specific scripts (start and end of <body>) come with each page (app/(site)/[[...slug]]/page.tsx). */
 export default function SiteLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <>
       <HeadTags />
-      <BodyTags />
       {children}
-      <WpEmoji />
-      <FootTags />
     </>
   );
 }

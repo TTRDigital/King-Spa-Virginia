@@ -48,6 +48,12 @@ function postDates(page: PageData): string | null {
   return `<div class="ksv-post-dates" style="font-size:13px;line-height:1.5;margin:8px 0;color:#667085">Published: ${f(pub)} | Updated: ${f(mod)}</div>`;
 }
 
+/** Header/footer images WordPress lazy-loads on this page get loading="lazy", as there. */
+function lazyChrome(html: string, page: PageData): string {
+  if (!page.chromeLazy?.length) return html;
+  return html.replace(/<img\b([^>]*?)\ssrc="([^"]+)"/g, (m, before: string, src: string) => (page.chromeLazy!.includes(src) && !/\sloading=/.test(m) ? `<img loading="lazy"${before} src="${src}"` : m));
+}
+
 /** Marks this page's item (and its parents) in the header menu, as WordPress did. */
 function markCurrent(header: string, page: PageData): string {
   return header.replace(/<li class="([^"]*)" id="(menu-item-\d+)">(<a class="hfe-sub-menu-item)?/g, (_m, cls: string, id: string, sub?: string) => {
@@ -65,8 +71,8 @@ export function pageHtml(page: PageData, chrome: Chrome): string {
   if (dates) content = content.replace(/(<h1\b[^>]*>[\s\S]*?<\/h1>)/, `$1${dates}`);
   const popups = activePopups(chrome).map(popupHtml).join("");
   if (page.canvas) return content + popups;
-  const header = markCurrent(region(chrome.header.shell, chrome.header.docs), page);
-  const footer = region(chrome.footer.shell, chrome.footer.docs);
+  const header = lazyChrome(markCurrent(region(chrome.header.shell, chrome.header.docs), page), page);
+  const footer = lazyChrome(region(chrome.footer.shell, chrome.footer.docs), page);
   return `<a class="skip-link screen-reader-text" href="#content">Skip to content</a><div class="hfeed site" id="page">${header}${content}${footer}</div>${popups}`;
 }
 

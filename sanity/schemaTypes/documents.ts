@@ -39,6 +39,7 @@ export const page = defineType({
     techText("ldjsonJson", "Structured data (JSON-LD, as on the live site)"),
     techText("headExtraJson", "Other head tags (JSON): article tags, video tags, prev/next links"),
     techText("navJson", "Current menu item (JSON)"),
+    techText("chromeLazyJson", "Header/footer images loaded lazily on this page (JSON)"),
     defineField({ name: "bodyClass", title: "Page classes", type: "text", rows: 2, fieldset: "advanced" }),
     defineField({ name: "shell", title: "Theme wrapper (HTML)", type: "text", rows: 6, fieldset: "advanced", description: 'Around the content; <div data-ks-doc="0"></div> marks where "Page content" goes.' }),
     defineField({ name: "cssKey", title: "Stylesheet", type: "string", fieldset: "advanced", description: "Leave empty. For a new page, the key of the page it was copied from (e.g. about)." }),

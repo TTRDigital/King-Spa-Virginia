@@ -7,6 +7,8 @@ import { pageMetadata } from "@/lib/seo";
 import { pageJsonLd } from "@/lib/schema";
 import { JsonLd } from "@/components/JsonLd";
 import { SiteRuntime } from "@/components/SiteRuntime";
+import { BodyTags, FootTags } from "@/components/Analytics";
+import { WpEmoji } from "@/components/WpEmoji";
 
 export const dynamicParams = false;
 
@@ -48,6 +50,7 @@ export default async function Page({ params }: Props) {
   const hero = heroBackground(page);
   return (
     <>
+      <BodyTags canvas={page.canvas} />
       <link rel="stylesheet" href={stylesheetHref(page)} precedence="default" />
       {preloadFonts(page).map((href) => (
         <link key={href} rel="preload" as="font" type="font/woff2" href={href} crossOrigin="anonymous" />
@@ -61,6 +64,8 @@ export default async function Page({ params }: Props) {
       <div className={`ks-body ${page.bodyClass}`} dangerouslySetInnerHTML={{ __html: html }} />
       {posts ? <script id="ks-data" type="application/json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ posts }).replace(/</g, "\\u003c") }} /> : null}
       <SiteRuntime />
+      <FootTags html={html} />
+      <WpEmoji />
     </>
   );
 }

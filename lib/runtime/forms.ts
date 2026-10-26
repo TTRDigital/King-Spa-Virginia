@@ -1,4 +1,4 @@
-import { $, $$, loadScript } from "./dom";
+import { $, $$ } from "./dom";
 
 /*
  * The site's forms post to /api/form.php (public/api/form.php), which emails
@@ -7,39 +7,41 @@ import { $, $$, loadScript } from "./dom";
  * - Contact Form 7: the private feedback form on /reviews/
  * - the comment form on /about/sophia-kim/
  * Messages are the plugins' own default texts. Google reCAPTCHA v2 checkboxes
- * (same site keys as the live site) are drawn when the script starts, from the
- * reCAPTCHA script at the end of the page (components/Analytics.tsx), as on the live site.
+ * (same site keys as the live site) load as on the live site (see captcha()).
  */
 
 const ENDPOINT = "/api/form.php";
 
-type G = { render: (el: Element, o: { sitekey: string; size?: string; theme?: string }) => number; getResponse: (id?: number) => string; reset: (id?: number) => void };
-const grecaptcha = () => (window as unknown as { grecaptcha?: G & { ready?: (f: () => void) => void } }).grecaptcha;
+type G = { render: (el: Element, o: Record<string, string>) => number; reset: (id?: number) => void };
+const grecaptcha = () => (window as unknown as { grecaptcha?: Partial<G> }).grecaptcha;
 
-let recaptchaReady: Promise<void> | null = null;
-function loadRecaptcha(): Promise<void> {
-  if (!recaptchaReady)
-    recaptchaReady = new Promise((resolve) => {
+/**
+ * The form's reCAPTCHA checkbox; returns a function that reads its token ("" when not ticked, null
+ * when the form has none). Elementor's box: Elementor Pro's handler, which checks every 350 ms for
+ * the API and then renders the box with its data-* settings. Contact Form 7's box is rendered by the
+ * plugin's own script (wpcf7-recaptcha-controls.js).
+ */
+function captcha(form: HTMLFormElement): () => string | null {
+  const elementor = $$(".elementor-g-recaptcha", form).pop();
+  const box = elementor ?? $(".wpcf7-recaptcha", form);
+  if (!box) return () => null;
+  if (elementor) {
+    const render = () => {
       const g = grecaptcha();
-      if (g?.ready) return g.ready(resolve);
-      (window as unknown as { ksRecaptchaLoaded: () => void }).ksRecaptchaLoaded = () => resolve();
-      void loadScript("https://www.google.com/recaptcha/api.js?onload=ksRecaptchaLoaded&render=explicit");
-    });
-  return recaptchaReady;
+      if (!g?.render) return void setTimeout(render, 350);
+      const id = g.render(elementor, { ...elementor.dataset } as Record<string, string>);
+      form.addEventListener("reset", () => g.reset!(id));
+    };
+    render();
+  }
+  return () => $<HTMLTextAreaElement>('[name="g-recaptcha-response"]', box)?.value ?? "";
 }
 
-/** Renders the reCAPTCHA boxes of a form; returns a function that reads the token. */
-function captcha(form: HTMLElement): () => string | null {
-  const boxes = $$(".elementor-g-recaptcha, .g-recaptcha, .wpcf7-recaptcha", form).filter((b) => b.dataset.sitekey);
-  if (!boxes.length) return () => null;
-  const ids: number[] = [];
-  void loadRecaptcha().then(() => {
-    for (const b of boxes) ids.push(grecaptcha()!.render(b, { sitekey: b.dataset.sitekey!, size: b.dataset.size || "normal", theme: b.dataset.theme || "light" }));
-  });
-  return () => (ids.length ? grecaptcha()!.getResponse(ids[0]) : "");
-}
+// Spam check without a hidden field: how long the page was open before sending (bots post at once).
+const opened = Date.now();
 
 async function post(data: FormData): Promise<boolean> {
+  data.set("ks_t", String(Date.now() - opened));
   try {
     const res = await fetch(ENDPOINT, { method: "POST", body: data, headers: { Accept: "application/json" } });
     const json = (await res.json().catch(() => ({}))) as { ok?: boolean };
@@ -49,21 +51,8 @@ async function post(data: FormData): Promise<boolean> {
   }
 }
 
-const trap = () => {
-  // Spam trap: real visitors never fill this in.
-  const i = document.createElement("input");
-  i.type = "text";
-  i.name = "ks_website";
-  i.tabIndex = -1;
-  i.autocomplete = "off";
-  i.setAttribute("aria-hidden", "true");
-  Object.assign(i.style, { position: "absolute", left: "-9999px", width: "1px", height: "1px", opacity: "0" });
-  return i;
-};
-
 function elementorForms() {
   for (const form of $$<HTMLFormElement>("form.elementor-form")) {
-    form.appendChild(trap());
     const token = captcha(form);
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -96,7 +85,6 @@ function elementorForms() {
 
 function cf7Forms() {
   for (const form of $$<HTMLFormElement>("form.wpcf7-form")) {
-    form.appendChild(trap());
     const token = captcha(form);
     const out = $(".wpcf7-response-output", form);
     form.addEventListener("submit", async (e) => {
@@ -140,7 +128,6 @@ function cf7Forms() {
 
 function commentForms() {
   for (const form of $$<HTMLFormElement>("form#commentform")) {
-    form.appendChild(trap());
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const data = new FormData(form);

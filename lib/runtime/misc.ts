@@ -1,8 +1,8 @@
-import { $, $$ } from "./dom";
+import { $, $$, device, settings } from "./dom";
 
 /*
- * Smaller page scripts from the live site: the header shadow after 200px of
- * scrolling, stretched sections, blog call-to-action click events, publish dates on related-post
+ * Smaller page scripts from the live site: Elementor Pro's sticky sections and
+ * widgets, the header shadow after 200px of scrolling, stretched sections, blog call-to-action click events, publish dates on related-post
  * cards, and the blog's article search.
  */
 
@@ -16,24 +16,146 @@ function data(): { posts?: PostInfo[] } {
   }
 }
 
-/**
- * Elementor Pro's sticky sections (the header), as its script does it: the section is fixed at the
- * top at its own width, and an invisible copy of it (the "spacer") holds its place in the page.
- * The copy's menu opens with the real one (lib/runtime/menu.ts), so an open phone menu pushes the
- * page down behind it, as on the live site. Runs right after the menu setup, so the copy carries
- * the menu's classes (but none of its event handlers), like Elementor's jQuery clone.
- */
-export function initSticky() {
-  for (const sec of $$("[data-settings*='\"sticky\":\"top\"']")) {
-    if (sec.closest(".elementor-sticky__spacer")) continue;
-    const spacer = sec.cloneNode(true) as HTMLElement;
-    spacer.classList.add("elementor-sticky", "elementor-sticky__spacer");
+/* ---------- Elementor Pro sticky (jquery.sticky.js and its handler, Pro 4.1) ---------- */
+
+type StickyCfg = { to: "top" | "bottom"; offset: number; effectsOffset: number };
+
+/** Elementor's getCurrentDeviceSetting: the device's value, else the next larger device's, else desktop's. */
+function deviceSetting(s: Record<string, unknown>, key: string): number {
+  const devices = ["desktop", "tablet", "mobile"];
+  for (let i = devices.indexOf(device()); i > 0; i--) {
+    const v = s[`${key}_${devices[i]}`];
+    if (v || v === 0) return Number(v);
+  }
+  return Number(s[key]);
+}
+
+/** Size of a box as jquery.sticky measures it (border and padding added for content-box). */
+function boxSize(el: HTMLElement, prop: "width" | "height"): number {
+  const cs = getComputedStyle(el);
+  let v = parseFloat(cs[prop]);
+  if (cs.boxSizing !== "border-box") for (const part of ["border", "padding"]) for (const side of prop === "height" ? ["top", "bottom"] : ["left", "right"]) v += parseFloat(cs.getPropertyValue(part === "border" ? `border-${side}-width` : `padding-${side}`));
+  return v;
+}
+
+const UNSTICKY = ["position", "width", "margin-top", "margin-bottom", "top", "bottom", "inset-inline-start"];
+
+function sticky(el: HTMLElement, cfg: StickyCfg) {
+  let stuck = false;
+  let effects = false;
+  let spacer: HTMLElement | null = null;
+  let width = 0;
+  let left = 0;
+  let backup: Record<string, string> = {};
+  const measure = () => {
+    width = boxSize(el, "width");
+    left = el.getBoundingClientRect().left + scrollX;
+  };
+  const addSpacer = () => {
+    spacer = el.cloneNode(true) as HTMLElement;
+    spacer.classList.add("elementor-sticky__spacer");
     Object.assign(spacer.style, { visibility: "hidden", transition: "none", animation: "none" });
-    sec.after(spacer);
-    sec.classList.add("elementor-sticky", "elementor-sticky--active", "elementor-sticky--effects");
-    const fit = () => Object.assign(sec.style, { position: "fixed", width: `${spacer.getBoundingClientRect().width}px`, marginTop: "0px", marginBottom: "0px", top: "0px" });
-    fit();
-    addEventListener("resize", fit);
+    el.after(spacer);
+  };
+  const stick = () => {
+    backup = Object.fromEntries(UNSTICKY.map((p) => [p, el.style.getPropertyValue(p)]));
+    el.style.position = "fixed";
+    el.style.width = `${width}px`;
+    el.style.marginTop = "0px";
+    el.style.marginBottom = "0px";
+    el.style.setProperty(cfg.to, `${cfg.offset}px`);
+    el.style.setProperty(cfg.to === "top" ? "bottom" : "top", "");
+    if (left) el.style.setProperty("inset-inline-start", `${left}px`);
+    el.classList.add("elementor-sticky--active", "elementor-section--handles-inside");
+  };
+  const unstick = () => {
+    for (const [p, v] of Object.entries(backup)) el.style.setProperty(p, v);
+    el.classList.remove("elementor-sticky--active", "elementor-section--handles-inside");
+  };
+  // How far the box is from its sticking point (top: its top edge to the offset; bottom: its bottom edge to the window bottom minus the offset).
+  const distance = (e: HTMLElement) => {
+    const top = e.getBoundingClientRect().top;
+    return cfg.to === "top" ? top - cfg.offset : -(top - innerHeight + boxSize(e, "height")) - cfg.offset;
+  };
+  const check = () => {
+    let t: number;
+    if (stuck) {
+      t = distance(spacer!);
+      if (t > 0) {
+        unstick();
+        spacer?.remove();
+        spacer = null;
+        stuck = false;
+      }
+    } else {
+      t = distance(el);
+      if (t <= 0) {
+        measure();
+        addSpacer();
+        stick();
+        stuck = true;
+      }
+    }
+    if (effects && -t < cfg.effectsOffset) {
+      el.classList.remove("elementor-sticky--effects");
+      effects = false;
+    } else if (!effects && -t >= cfg.effectsOffset) {
+      el.classList.add("elementor-sticky--effects");
+      effects = true;
+    }
+  };
+  const resize = () => {
+    if (!stuck) return;
+    unstick();
+    spacer?.remove();
+    measure();
+    addSpacer();
+    stick();
+  };
+  el.classList.add("elementor-sticky");
+  addEventListener("scroll", check);
+  addEventListener("resize", resize);
+  check();
+  return () => {
+    if (stuck) {
+      unstick();
+      spacer?.remove();
+      spacer = null;
+      stuck = false;
+    }
+    removeEventListener("scroll", check);
+    removeEventListener("resize", resize);
+    el.classList.remove("elementor-sticky");
+  };
+}
+
+/** Sections and widgets set to "sticky": stuck on the chosen devices, re-set when a resize changes the offsets. */
+export function initSticky() {
+  for (const el of $$<HTMLElement>("[data-settings*='\"sticky\":']")) {
+    if (el.closest(".elementor-sticky__spacer")) continue;
+    const s = settings<Record<string, unknown> & { sticky?: "top" | "bottom"; sticky_on?: string[] }>(el);
+    if (!s.sticky) continue;
+    let destroy: (() => void) | null = null;
+    let current = "";
+    const config = (): StickyCfg => ({ to: s.sticky!, offset: deviceSetting(s, "sticky_offset"), effectsOffset: deviceSetting(s, "sticky_effects_offset") });
+    const run = (again = false) => {
+      if (!(s.sticky_on ?? []).includes(device())) {
+        destroy?.();
+        destroy = null;
+      } else if (again || !destroy) {
+        destroy?.();
+        current = JSON.stringify(config());
+        destroy = sticky(el, config());
+      }
+    };
+    let timer = 0;
+    addEventListener("resize", () => {
+      clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        if (JSON.stringify(config()) !== current) run(true);
+      }, 300);
+    });
+    run();
   }
 }
 

@@ -290,40 +290,129 @@ function reviewStars() {
 
 /* ---------- table of contents ---------- */
 
+const escHtml = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+/**
+ * Elementor Pro's table of contents (table-of-contents.js, Pro 4.1), step for step: the headings it
+ * lists, the anchors it adds, the list markup, the item it highlights while reading (one
+ * IntersectionObserver per item, with the same rules) and the minimised box.
+ */
 function toc() {
   for (const w of $$(".elementor-widget-table-of-contents")) {
-    const s = settings<{ headings_by_tags?: string[]; exclude_headings_by_selector?: string | string[]; container?: string; no_headings_message?: string; minimize_box?: string; minimized_on?: string }>(w);
+    const s = settings<{ headings_by_tags?: string[]; exclude_headings_by_selector?: string | string[]; container?: string; no_headings_message?: string; minimize_box?: string; minimized_on?: string; marker_view?: string; hierarchical_view?: string; min_height?: { size?: string | number; unit?: string } }>(w);
     const body = $(".elementor-toc__body", w);
     if (!body) continue;
-    const root = (s.container && $(s.container)) || $(".ks-body") || document.body;
-    const exclude = Array.isArray(s.exclude_headings_by_selector) ? s.exclude_headings_by_selector.join(",") : s.exclude_headings_by_selector || "";
-    const heads = $$((s.headings_by_tags ?? ["h2", "h3", "h4", "h5", "h6"]).join(","), root).filter((h) => !w.contains(h) && !(exclude && h.matches(exclude)) && !h.closest(".elementor-popup-modal"));
+    const popup = w.closest<HTMLElement>(".elementor")?.dataset.elementorType === "popup" ? w.closest<HTMLElement>(".elementor") : null;
+    const containers = s.container ? $$(s.container) : popup ? [popup] : $$('.elementor:not([data-elementor-type="header"]):not([data-elementor-type="footer"]):not([data-elementor-type="popup"])');
+    const exclude = (Array.isArray(s.exclude_headings_by_selector) ? s.exclude_headings_by_selector.join(",") : s.exclude_headings_by_selector) || "";
+    const tags = (s.headings_by_tags ?? ["h2", "h3", "h4", "h5", "h6"]).join(",");
+    const heads = [...new Set(containers.flatMap((c) => $$(tags, c)))].filter((h) => !h.matches(".elementor-toc__header-title") && !(exclude && h.closest(exclude)));
     if (!heads.length) {
-      body.innerHTML = `<div class="elementor-toc__no-headings">${s.no_headings_message ?? ""}</div>`;
+      body.innerHTML = s.no_headings_message ?? "";
       continue;
     }
-    const ul = document.createElement("ul");
-    ul.className = "elementor-toc__list-wrapper";
-    heads.forEach((h, i) => {
-      const id = `elementor-toc__heading-anchor-${i}`;
-      if (!document.getElementById(id)) h.insertAdjacentHTML("beforebegin", `<span id="${id}" class="elementor-menu-anchor "></span>`);
-      ul.insertAdjacentHTML("beforeend", `<li class="elementor-toc__list-item"><div class="elementor-toc__list-item-text-wrapper"><a href="#${id}" class="elementor-toc__list-item-text"></a></div></li>`);
-      (ul.lastElementChild!.querySelector("a") as HTMLElement).textContent = h.textContent ?? "";
+    // Anchor: the heading's own id or its widget's, else a span Elementor puts before the heading.
+    const items = heads.map((h, i) => {
+      const own = h.id || h.closest<HTMLElement>(".elementor-widget")?.id;
+      return { tag: Number(h.tagName.slice(1)), text: h.textContent ?? "", own: !!own, link: own || `elementor-toc__heading-anchor-${i}`, level: undefined as number | undefined };
     });
-    body.replaceChildren(ul);
-    const expand = $(".elementor-toc__toggle-button--expand", w);
-    const collapse = $(".elementor-toc__toggle-button--collapse", w);
-    const set = (collapsed: boolean) => {
+    heads.forEach((h, i) => {
+      if (!items[i].own) h.insertAdjacentHTML("beforebegin", `<span id="${items[i].link}" class="elementor-menu-anchor "></span>`);
+    });
+    // Hierarchical view: a heading nests under the nearest earlier heading of a higher rank.
+    if (s.hierarchical_view)
+      items.forEach((it, i) => {
+        it.level = 0;
+        for (let j = i - 1; j >= 0; j--) {
+          if (items[j].tag <= it.tag) {
+            it.level = items[j].level! + (items[j].tag < it.tag ? 1 : 0);
+            break;
+          }
+        }
+      });
+    const tag = s.marker_view === "numbers" ? "ol" : "ul";
+    let pointer = 0;
+    const level = (lv?: number): string => {
+      let html = `<${tag} class="elementor-toc__list-wrapper">`;
+      while (pointer < items.length) {
+        const it = items[pointer];
+        if (lv! > it.level!) break;
+        if (lv === it.level) {
+          html += `<li class="elementor-toc__list-item"><div class="elementor-toc__list-item-text-wrapper"><a href="#${it.link}" class="elementor-toc__list-item-text${it.level === 0 ? " elementor-toc__top-level" : ""}">${escHtml(it.text)}</a></div>`;
+          pointer++;
+          const next = items[pointer];
+          if (next && lv! < next.level!) html += level(next.level);
+          html += "</li>";
+        }
+      }
+      return `${html}</${tag}>`;
+    };
+    body.innerHTML = s.hierarchical_view ? level(0) : level();
+    // The item of the heading being read is highlighted.
+    const links = $$<HTMLAnchorElement>(".elementor-toc__list-item-text", w);
+    const at = (i: number) => (i < 0 ? links[links.length + i] : links[i]); // jQuery's .eq()
+    let active: HTMLElement | undefined;
+    let clicked = false;
+    const inView: Record<string, boolean> = {};
+    const activate = (a: HTMLElement | undefined) => {
+      if (active && active !== a) active.classList.remove("elementor-item-active");
+      a?.classList.add("elementor-item-active");
+      active = a;
+    };
+    links.forEach((a, i) => {
+      const id = decodeURIComponent(a.hash.slice(1));
+      const anchor = document.getElementById(id);
+      if (!anchor) return;
+      let last = 0;
+      new IntersectionObserver(
+        (entries) =>
+          entries.forEach((e) => {
+            const top = document.documentElement.scrollTop;
+            const down = top > last;
+            if (e.isIntersecting && !clicked) {
+              inView[id] = true;
+              activate(a);
+            } else if (e.isIntersecting && down) {
+              delete inView[id];
+              if (Object.keys(inView).length) activate(at(i + 1));
+            } else if (!down) {
+              delete inView[id];
+              activate(at(i - 1));
+            }
+            last = top <= 0 ? 0 : top;
+          }),
+        { rootMargin: "0px", threshold: 0 },
+      ).observe(anchor);
+      a.addEventListener("click", () => {
+        clicked = true;
+        setTimeout(() => (clicked = false), 2000);
+        activate(a);
+      });
+    });
+    // Minimised box: the toggle buttons, and closed on load at the chosen size and smaller.
+    if (!s.minimize_box) continue;
+    const expand = $<HTMLElement>(".elementor-toc__toggle-button--expand", w);
+    const collapse = $<HTMLElement>(".elementor-toc__toggle-button--collapse", w);
+    const container = $<HTMLElement>(".elementor-widget-container", w) ?? w;
+    const set = (collapsed: boolean, focus: boolean) => {
       w.classList.toggle("elementor-toc--collapsed", collapsed);
-      // Elementor slides the list away; no stylesheet rule hides it.
-      body.style.display = collapsed ? "none" : "";
+      slide(body, !collapsed, 400);
       expand?.setAttribute("aria-expanded", String(!collapsed));
       collapse?.setAttribute("aria-expanded", String(!collapsed));
+      container.style.minHeight = collapsed ? "0px" : s.min_height?.size ? `${s.min_height.size}${s.min_height.unit ?? "px"}` : "";
+      if (focus) (collapsed ? expand : collapse)?.focus();
     };
-    expand?.addEventListener("click", () => set(false));
-    collapse?.addEventListener("click", () => set(true));
-    const d = device();
-    if (s.minimize_box === "yes" && (s.minimized_on === "mobile" ? d === "mobile" : s.minimized_on === "tablet" ? d !== "desktop" : false)) set(true);
+    for (const [btn, collapsed] of [[expand, false], [collapse, true]] as const) {
+      btn?.addEventListener("click", () => set(collapsed, true));
+      btn?.addEventListener("keyup", (e) => {
+        if (e.keyCode === 13 || e.keyCode === 32) {
+          btn.click();
+          e.stopPropagation();
+        }
+      });
+    }
+    const order = ["mobile", "tablet", "desktop"];
+    if (s.minimized_on === "desktop" || order.indexOf(s.minimized_on ?? "") >= order.indexOf(device())) set(true, false);
   }
 }
 

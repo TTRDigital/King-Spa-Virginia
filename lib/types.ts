@@ -91,6 +91,8 @@ export type PageData = {
   docs: ElDocument[];
   /** Elementor Canvas template: no theme header/footer. */
   canvas?: boolean;
+  /** Header/footer images WordPress lazy-loads on this page (src paths); it decides per page. */
+  chromeLazy?: string[];
   /** Header menu items WordPress marked as current on this page (li id -> classes). */
   /** Header menu items that are current on this page: their <li> classes as on the live page, and whether the plugin marked the link active. */
   nav?: Record<string, { cls: string; ariaCurrent: string | null; linkActive?: boolean }>;

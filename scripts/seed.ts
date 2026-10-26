@@ -152,6 +152,7 @@ async function build() {
       bodyClass: p.bodyClass,
       shell: p.shell,
       canvas: p.canvas || undefined,
+      chromeLazyJson: json(p.chromeLazy),
       docs: await docs(p.docs),
     });
   }
@@ -208,7 +209,7 @@ if (dryRun) {
   for (const d of all.filter((x) => x._type === "page")) {
     const back = normalize(d, "p", "production") as Partial<PageData>;
     const base = pages.find((p) => p.path === back.path)!;
-    for (const k of ["title", "description", "canonical", "robots", "og", "ldjson", "headExtra", "nav", "bodyClass", "shell", "docs"] as const) {
+    for (const k of ["title", "description", "canonical", "robots", "og", "ldjson", "headExtra", "nav", "chromeLazy", "bodyClass", "shell", "docs"] as const) {
       const a = stripAssets(back[k] ?? null);
       const b = stripAssets(base[k] ?? null);
       if (!isDeepStrictEqual(a, b)) {

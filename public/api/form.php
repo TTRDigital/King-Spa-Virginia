@@ -35,11 +35,11 @@ if ($originHost && $originHost !== $host && $originHost !== ($_SERVER['HTTP_HOST
 $config = @include __DIR__ . '/.config.php';
 if (!is_array($config) || empty($config['to'])) reply(false, 503);
 
-// Spam trap: hidden field real visitors leave empty.
-if (!empty($_POST['ks_website'])) reply(true);
-
 $kind = $_POST['ks_form'] ?? '';
 if (!in_array($kind, ['newsletter', 'review', 'comment'], true)) reply(false, 400);
+
+// Spam check: the page script sends how long the page was open (ms); bots post at once or without it.
+if ((int) ($_POST['ks_t'] ?? 0) < 2000) reply(true);
 
 $clean = function ($v, $max = 2000) {
   $v = is_string($v) ? trim($v) : '';
@@ -49,7 +49,7 @@ $clean = function ($v, $max = 2000) {
 
 // Google reCAPTCHA v2 (the forms that have the checkbox on the live site).
 function recaptcha_ok($secret, $token) {
-  if (!$secret) return true; // not configured: rely on the spam trap
+  if (!$secret) return true; // not configured: rely on the timing check
   if (!$token) return false;
   $ctx = stream_context_create(['http' => [
     'method' => 'POST',
