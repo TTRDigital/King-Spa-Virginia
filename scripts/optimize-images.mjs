@@ -99,7 +99,8 @@ for (const f of await readdir(cssIn)) {
 }
 console.log(`[css] ${sheets} page stylesheets written to public/css`);
 
-// Icon fonts: keep only the icons in use: every icon class is a `content:"\\fxxx"` rule in some
+// Icon fonts: keep only the icons in use: every icon class is a `content:"\\fxxx"` rule (or the
+// character itself) in some
 // page's stylesheet, and some widgets (Elementor's star ratings) put the icon character itself in
 // the text. The glyphs and metrics are the original ones.
 const ICON_FONTS = {
@@ -110,7 +111,10 @@ const ICON_FONTS = {
 };
 const icons = new Set();
 for (const f of await readdir(cssOut)) {
-  for (const m of (await readFile(path.join(cssOut, f), "utf8")).matchAll(/content:\s*["']\\([ef][0-9a-f]{3})["']/gi)) icons.add(String.fromCodePoint(parseInt(m[1], 16)));
+  const css = await readFile(path.join(cssOut, f), "utf8");
+  for (const m of css.matchAll(/content:\s*["']\\([ef][0-9a-f]{3})["']/gi)) icons.add(String.fromCodePoint(parseInt(m[1], 16)));
+  // Some stylesheets hold the icon character itself rather than its \fxxx escape.
+  for (const m of css.matchAll(/[\ue000-\uf8ff]/g)) icons.add(m[0]);
 }
 const dataDir = path.resolve("lib/data");
 for (const f of ["chrome.json", ...(await readdir(path.join(dataDir, "pages"))).map((x) => path.join("pages", x))]) {

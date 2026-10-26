@@ -11,7 +11,7 @@ const abs = (u: string) => (u.startsWith("http") ? u : absoluteUrl(u));
 export function pageMetadata(page: PageData): Metadata {
   const og = page.og;
   const image = og["og:image"]
-    ? [{ url: abs(og["og:image"]), width: Number(og["og:image:width"]) || undefined, height: Number(og["og:image:height"]) || undefined, alt: og["og:image:alt"], type: og["og:image:type"] }]
+    ? [{ url: abs(og["og:image"]), secureUrl: og["og:image:secure_url"] ? abs(og["og:image"]) : undefined, width: Number(og["og:image:width"]) || undefined, height: Number(og["og:image:height"]) || undefined, alt: og["og:image:alt"], type: og["og:image:type"] }]
     : undefined;
   const isArticle = og["og:type"] === "article";
   const other: Record<string, string> = {};
@@ -27,7 +27,7 @@ export function pageMetadata(page: PageData): Metadata {
       siteName: og["og:site_name"],
       title: og["og:title"],
       description: og["og:description"],
-      url: og["og:url"] ? new URL(og["og:url"]).pathname : page.path,
+      url: og["og:url"] ? new URL(og["og:url"]).pathname : undefined,
       images: image,
       videos: og["og:video"] ? [{ url: og["og:video"] }] : undefined,
       ...(isArticle

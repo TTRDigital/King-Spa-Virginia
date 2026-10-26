@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getChrome, getPage, getPages, getSiteSettings } from "@/lib/content";
+import { getChrome, getPage, getPages } from "@/lib/content";
 import imageLoader from "@/lib/image-loader";
 import { heroBackground, pageHtml, postIndex, preloadFonts, stylesheetHref } from "@/lib/page-html";
 import { pageMetadata } from "@/lib/seo";
-import { breadcrumbSchema, businessSchema, faqPageSchema, pageFaqs } from "@/lib/schema";
+import { pageJsonLd } from "@/lib/schema";
 import { JsonLd } from "@/components/JsonLd";
 import { SiteRuntime } from "@/components/SiteRuntime";
 
@@ -41,9 +41,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function Page({ params }: Props) {
   const page = await getPage(toPath((await params).slug));
   if (!page) notFound();
-  const [chrome, settings] = await Promise.all([getChrome(), getSiteSettings()]);
-  const crumbs = page.path === "/" || page.path === "/404/" ? null : breadcrumbSchema(page);
-  const faqs = pageFaqs(page);
+  const chrome = await getChrome();
   const html = pageHtml(page, chrome);
   // Post list for the blog search box and the dates on related-post cards.
   const posts = /id="postSearch"|eael-grid-post/.test(html) ? postIndex(await getPages()) : null;
@@ -55,9 +53,11 @@ export default async function Page({ params }: Props) {
         <link key={href} rel="preload" as="font" type="font/woff2" href={href} crossOrigin="anonymous" />
       ))}
       {hero ? HERO_SIZES.map(([w, media]) => <link key={w} rel="preload" as="image" href={imageLoader({ src: hero, width: w })} media={media} fetchPriority="high" />) : null}
-      <JsonLd data={businessSchema(settings)} />
-      {crumbs ? <JsonLd data={crumbs} /> : null}
-      {faqs.length >= 2 ? <JsonLd data={faqPageSchema(faqs)} /> : null}
+      {page.headExtra?.meta.map(([attr, key, content], i) => <meta key={`m${i}`} {...{ [attr]: key }} content={content} />)}
+      {page.headExtra?.links.map(([rel, href]) => <link key={rel} rel={rel} href={href} />)}
+      {pageJsonLd(page).map((ld, i) => (
+        <JsonLd key={i} data={ld} />
+      ))}
       <div className={`ks-body ${page.bodyClass}`} dangerouslySetInnerHTML={{ __html: html }} />
       {posts ? <script id="ks-data" type="application/json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ posts }).replace(/</g, "\\u003c") }} /> : null}
       <SiteRuntime />

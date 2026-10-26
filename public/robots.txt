@@ -1,0 +1,42 @@
+User-agent: *
+Disallow: /wp-admin/
+Allow: /wp-admin/admin-ajax.php
+Disallow: /tag/
+Disallow: /tags/
+Disallow: /trackback/
+Disallow: /cgi-bin/
+Disallow: /subscribe/
+Disallow: /newsletter/
+Disallow: /careers/
+Disallow: /xmlrpc.php
+Allow: /wp-content/uploads/
+Allow: /wp-json/
+Sitemap: https://virginia.kingspa.com/sitemap_index.xml
+
+# --- AI and modern crawlers ---
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: YouBot
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+User-agent: Amazonbot
+Allow: /

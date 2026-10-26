@@ -83,6 +83,8 @@ export type PageData = {
   robots: string | null;
   og: Record<string, string>;
   ldjson?: unknown[];
+  /** Head tags written as the live page had them: property= metas (article:tag, ya:ovs:*) and prev/next links. */
+  headExtra?: { meta: [string, string, string][]; links: [string, string][] };
   bodyClass: string;
   /** #content markup with `<div data-ks-doc="n">` where Elementor document n goes. */
   shell: string;

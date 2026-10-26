@@ -1,7 +1,7 @@
 import { initForms } from "./forms";
 import { initMedia } from "./media";
 import { initMenus } from "./menu";
-import { initMisc } from "./misc";
+import { initMisc, initSticky } from "./misc";
 import { initSliders } from "./sliders";
 import { initWidgets } from "./widgets";
 
@@ -12,7 +12,7 @@ import { initWidgets } from "./widgets";
  * a module script (components/SiteRuntime.tsx): the pages need no React in the
  * browser. Runs once per page load.
  */
-for (const init of [initMenus, initWidgets, initMedia, initSliders, initForms, initMisc]) {
+for (const init of [initMenus, initSticky, initWidgets, initMedia, initSliders, initForms, initMisc]) {
   try {
     init();
   } catch (error) {

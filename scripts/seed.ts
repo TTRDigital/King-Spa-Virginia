@@ -148,6 +148,7 @@ async function build() {
       ogJson: json(p.og),
       ldjsonJson: json(p.ldjson),
       navJson: json(p.nav),
+      headExtraJson: json(p.headExtra),
       bodyClass: p.bodyClass,
       shell: p.shell,
       canvas: p.canvas || undefined,
@@ -207,7 +208,7 @@ if (dryRun) {
   for (const d of all.filter((x) => x._type === "page")) {
     const back = normalize(d, "p", "production") as Partial<PageData>;
     const base = pages.find((p) => p.path === back.path)!;
-    for (const k of ["title", "description", "canonical", "robots", "og", "ldjson", "nav", "bodyClass", "shell", "docs"] as const) {
+    for (const k of ["title", "description", "canonical", "robots", "og", "ldjson", "headExtra", "nav", "bodyClass", "shell", "docs"] as const) {
       const a = stripAssets(back[k] ?? null);
       const b = stripAssets(base[k] ?? null);
       if (!isDeepStrictEqual(a, b)) {

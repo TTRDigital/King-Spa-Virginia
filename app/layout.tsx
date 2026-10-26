@@ -8,8 +8,6 @@ import { siteUrl } from "@/lib/site";
  */
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  applicationName: "KING SPA Virginia",
-  formatDetection: { telephone: false, address: false, email: false },
   // Same icons and site verifications as the live site.
   icons: {
     icon: [

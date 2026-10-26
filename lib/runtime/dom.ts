@@ -16,6 +16,9 @@ export function settings<T = Record<string, unknown>>(el: Element | null): T {
 /** Elementor's breakpoints: mobile up to 767px, tablet up to 1024px. */
 export const device = (): "mobile" | "tablet" | "desktop" => (innerWidth <= 767 ? "mobile" : innerWidth <= 1024 ? "tablet" : "desktop");
 
+/** Device as Elementor's carousel and gallery libraries see it: desktop from 1024px, tablet from 767px. */
+export const libDevice = (): "mobile" | "tablet" | "desktop" => (innerWidth < 767 ? "mobile" : innerWidth < 1024 ? "tablet" : "desktop");
+
 /** Device-specific setting with Elementor's fallback (mobile -> tablet -> desktop). */
 export function responsive<T>(s: Record<string, unknown>, key: string): T | undefined {
   const d = device();

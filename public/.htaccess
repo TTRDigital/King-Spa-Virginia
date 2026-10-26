@@ -32,9 +32,15 @@ ErrorDocument 410 /404-error/index.html
 
   # ---- Old URLs (keep above the slash rule) ----
 
-  # /blog/page/2/, /blog/page/3/...: WordPress showed the blog page again there
-  # (canonical /blog/), so send them to /blog/.
-  RewriteRule ^blog/page/[0-9]+/?$ https://%{HTTP_HOST}/blog/ [R=301,L,NC]
+  # /blog/category/<category>/: the live site shows the same page as /blog/category/blog/<category>/
+  # there (same canonical); without the slash it adds one.
+  RewriteRule ^blog/category/(body-scrubs|facials|korean-spa|massage-guides|plan-your-visit)$ https://%{HTTP_HOST}/blog/category/$1/ [R=301,L,NC]
+  RewriteRule ^blog/category/(body-scrubs|facials|korean-spa|massage-guides|plan-your-visit)/$ /blog/category/blog/$1/index.html [L,NC]
+
+  # /blog/page/2/, /blog/page/3/...: the live site shows the blog page again there
+  # (its canonical is /blog/); without the slash it adds one.
+  RewriteRule ^blog/page/([0-9]+)$ https://%{HTTP_HOST}/blog/page/$1/ [R=301,L,NC]
+  RewriteRule ^blog/page/[0-9]+/$ /blog/index.html [L,NC]
 
   # Redirects the WordPress site already made (Rank Math and WordPress's own
   # "old slug" guesses), each straight to the final page in one step.
@@ -59,11 +65,6 @@ ErrorDocument 410 /404-error/index.html
   RewriteRule ^blog/bubble-body/?$ https://%{HTTP_HOST}/treatments/couples/bubble-body/ [R=301,L,NC]
   RewriteRule ^blog/can-body-scrub-remove-dark-spots-lets-find-out/?$ https://%{HTTP_HOST}/blog/can-body-scrub-remove-dark-spots-king-spa-va/ [R=301,L,NC]
   RewriteRule ^blog/can-body-scrub-remove-dark-spots/?$ https://%{HTTP_HOST}/blog/can-body-scrub-remove-dark-spots-king-spa-va/ [R=301,L,NC]
-  RewriteRule ^blog/category/body-scrubs/?$ https://%{HTTP_HOST}/blog/category/blog/body-scrubs/ [R=301,L,NC]
-  RewriteRule ^blog/category/facials/?$ https://%{HTTP_HOST}/blog/category/blog/facials/ [R=301,L,NC]
-  RewriteRule ^blog/category/korean-spa/?$ https://%{HTTP_HOST}/blog/category/blog/korean-spa/ [R=301,L,NC]
-  RewriteRule ^blog/category/massage-guides/?$ https://%{HTTP_HOST}/blog/category/blog/massage-guides/ [R=301,L,NC]
-  RewriteRule ^blog/category/plan-your-visit/?$ https://%{HTTP_HOST}/blog/category/blog/plan-your-visit/ [R=301,L,NC]
   RewriteRule ^blog/cbd-oil-massage/?$ https://%{HTTP_HOST}/massage-therapy/cbd-oil-massage/ [R=301,L,NC]
   RewriteRule ^blog/cbd-oil/?$ https://%{HTTP_HOST}/body-scrub/women/cbd-oil/ [R=301,L,NC]
   RewriteRule ^blog/chair-massage/?$ https://%{HTTP_HOST}/massage-therapy/chair-massage/ [R=301,L,NC]
@@ -372,9 +373,15 @@ ErrorDocument 410 /404-error/index.html
   RewriteCond %{DOCUMENT_ROOT}/images/wp/$1$3 -f
   RewriteRule ^wp-content/uploads/(.+?)(-\d+x\d+)?(\.(?:jpe?g|png|gif|webp|svg))(?:\.webp)?$ https://%{HTTP_HOST}/images/wp/$1$3 [R=301,L,NC]
 
-  # WordPress / Rank Math sitemaps -> the real sitemap.
-  RewriteRule ^(?:sitemap_index|wp-sitemap|[a-z_-]+-sitemap\d*|wp-sitemap-[a-z0-9_-]+)\.xml$ https://%{HTTP_HOST}/sitemap.xml [R=301,L,NC]
-  RewriteRule ^main-sitemap\.xsl$ https://%{HTTP_HOST}/sitemap.xml [R=301,L,NC]
+  # Sitemaps, answered as the live site's SEO plugin (Rank Math) answered them:
+  # /sitemap_index.xml, /post-, /page-, /category-sitemap.xml are files (lib/sitemaps.ts).
+  RewriteRule ^(?:sitemap|wp-sitemap)\.xml$ https://%{HTTP_HOST}/sitemap_index.xml [R=301,L,NC]
+  RewriteRule ^wp-sitemap-posts-post-\d+\.xml$ https://%{HTTP_HOST}/post-sitemap.xml [R=301,L,NC]
+  RewriteRule ^wp-sitemap-posts-page-\d+\.xml$ https://%{HTTP_HOST}/page-sitemap.xml [R=301,L,NC]
+  RewriteRule ^wp-sitemap-taxonomies-category-\d+\.xml$ https://%{HTTP_HOST}/category-sitemap.xml [R=301,L,NC]
+  RewriteRule ^wp-sitemap-[a-z0-9_-]+\.xml$ https://%{HTTP_HOST}/sitemap_index.xml [R=301,L,NC]
+  RewriteRule ^(post|page|category)-sitemap1\.xml$ /$1-sitemap.xml [L,NC]
+  RewriteRule ^(post|page|category)-sitemap(?:[2-9]|\d{2,})\.xml$ https://%{HTTP_HOST}/$1-sitemap.xml [R=302,L,NC]
 
   # WordPress-only addresses: 410 Gone, so search engines drop them.
   RewriteRule ^(?:wp-admin|wp-includes|wp-json|wp-content)(?:/|$) - [G,L,NC]
@@ -440,6 +447,7 @@ ErrorDocument 410 /404-error/index.html
   AddType font/woff2 .woff2
   AddType text/javascript .js .mjs
   AddType text/plain .txt
+  AddType text/xml .xml .xsl
   AddType application/manifest+json .webmanifest
 </IfModule>
 

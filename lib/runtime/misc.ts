@@ -16,11 +16,30 @@ function data(): { posts?: PostInfo[] } {
   }
 }
 
+/**
+ * Elementor Pro's sticky sections (the header), as its script does it: the section is fixed at the
+ * top at its own width, and an invisible copy of it (the "spacer") holds its place in the page.
+ * The copy's menu opens with the real one (lib/runtime/menu.ts), so an open phone menu pushes the
+ * page down behind it, as on the live site. Runs right after the menu setup, so the copy carries
+ * the menu's classes (but none of its event handlers), like Elementor's jQuery clone.
+ */
+export function initSticky() {
+  for (const sec of $$("[data-settings*='\"sticky\":\"top\"']")) {
+    if (sec.closest(".elementor-sticky__spacer")) continue;
+    const spacer = sec.cloneNode(true) as HTMLElement;
+    spacer.classList.add("elementor-sticky", "elementor-sticky__spacer");
+    Object.assign(spacer.style, { visibility: "hidden", transition: "none", animation: "none" });
+    sec.after(spacer);
+    sec.classList.add("elementor-sticky", "elementor-sticky--active", "elementor-sticky--effects");
+    const fit = () => Object.assign(sec.style, { position: "fixed", width: `${spacer.getBoundingClientRect().width}px`, marginTop: "0px", marginBottom: "0px", top: "0px" });
+    fit();
+    addEventListener("resize", fit);
+  }
+}
+
 function stickyHeader() {
   const body = $(".ks-body");
   if (!body) return;
-  // Elementor's sticky sections (the header): same classes as on the live site; the stylesheet keeps them at the top.
-  for (const sec of $$("[data-settings*='\"sticky\":\"top\"']")) sec.classList.add("elementor-sticky", "elementor-sticky--active", "elementor-sticky--effects");
   const on = () => body.classList.toggle("sticky-header", scrollY >= 200);
   on();
   addEventListener("scroll", on, { passive: true });

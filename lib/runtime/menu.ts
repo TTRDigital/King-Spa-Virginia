@@ -18,6 +18,9 @@ function dropdownMode(widget: HTMLElement): boolean {
   return false;
 }
 
+/** The sub-menus that follow a parent item's link box (its siblings, not its children). */
+const subMenus = (box: Element) => [...(box.parentElement?.children ?? [])].filter((e): e is HTMLElement => e !== box && e.matches(".sub-menu") && !!(box.compareDocumentPosition(e) & Node.DOCUMENT_POSITION_FOLLOWING));
+
 function setup(widget: HTMLElement) {
   const toggle = $(".hfe-nav-menu__toggle", widget);
   const nav = $<HTMLElement>("nav", widget);
@@ -29,7 +32,11 @@ function setup(widget: HTMLElement) {
     a.setAttribute("aria-expanded", "false");
   }
 
-  const border = () => nav.classList.toggle("hfe-dropdown", dropdownMode(widget));
+  const border = () => {
+    const on = dropdownMode(widget);
+    nav.classList.toggle("hfe-dropdown", on);
+    for (const twin of $$(`.elementor-sticky__spacer [data-id="${widget.dataset.id}"] nav`)) twin.classList.toggle("hfe-dropdown", on);
+  };
   border();
   addEventListener("resize", border);
 
@@ -54,6 +61,8 @@ function setup(widget: HTMLElement) {
       toggle.classList.toggle("hfe-active-menu", open);
       toggle.setAttribute("aria-expanded", String(open));
       nav.classList.toggle("menu-is-active", open);
+      // The sticky header's invisible copy opens too (it takes the menu's room in the page).
+      for (const twin of $$(`.elementor-sticky__spacer [data-id="${widget.dataset.id}"] nav`)) twin.classList.toggle("menu-is-active", open);
       // The plugin's icons, from the nav's data-toggle-icon / data-close-icon (Font Awesome <i>).
       if (icon && nav.dataset.toggleIcon) icon.innerHTML = (open ? nav.dataset.closeIcon : nav.dataset.toggleIcon) ?? "";
       if (nav.dataset.fullWidth === "yes") {
@@ -80,7 +89,7 @@ function setup(widget: HTMLElement) {
       if (box.classList.contains("sub-menu-active")) {
         link?.setAttribute("aria-expanded", "false");
         box.classList.remove("sub-menu-active");
-        for (const s of $$(":scope ~ .sub-menu", box)) {
+        for (const s of subMenus(box)) {
           s.classList.remove("sub-menu-open");
           Object.assign(s.style, { visibility: "hidden", opacity: "0", height: "0", transition: "none" });
         }
@@ -90,7 +99,7 @@ function setup(widget: HTMLElement) {
       link?.setAttribute("aria-expanded", "true");
       if (sub) sub.style.position = "relative";
       box.classList.add("sub-menu-active");
-      for (const s of $$(":scope ~ .sub-menu", box)) {
+      for (const s of subMenus(box)) {
         s.classList.add("sub-menu-open");
         Object.assign(s.style, { visibility: "visible", opacity: "1", height: "auto", transition: "0.3s ease" });
       }
@@ -124,6 +133,6 @@ function noWrap() {
 }
 
 export function initMenus() {
-  for (const w of $$(".elementor-widget-navigation-menu")) setup(w);
+  for (const w of $$(".elementor-widget-navigation-menu")) if (!w.closest(".elementor-sticky__spacer")) setup(w);
   noWrap();
 }

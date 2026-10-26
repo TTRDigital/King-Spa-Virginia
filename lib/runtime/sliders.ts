@@ -44,9 +44,10 @@ async function swipers() {
         autoplay: s.autoplay === "yes" ? { delay: num(s.autoplay_speed, 5000), disableOnInteraction: s.pause_on_interaction === "yes", pauseOnMouseEnter: s.pause_on_hover === "yes" } : false,
         navigation: arrows ? { nextEl: $(".elementor-swiper-button-next", widget), prevEl: $(".elementor-swiper-button-prev", widget) } : false,
         pagination: dots ? { el: $(".swiper-pagination", widget), type: "bullets", clickable: true } : false,
+        // Elementor's keys: its tablet breakpoint (767) and desktop from 1024, as on the live site.
         breakpoints: {
-          768: { slidesPerView: tablet, slidesPerGroup: scroll("slides_to_scroll_tablet", 1), spaceBetween: isCarousel ? gap : num(s.space_between_tablet, gap) },
-          1025: { slidesPerView: desktop, slidesPerGroup: scroll("slides_to_scroll", 1), spaceBetween: gap },
+          767: { slidesPerView: tablet, slidesPerGroup: scroll("slides_to_scroll_tablet", 1), spaceBetween: isCarousel ? gap : num(s.space_between_tablet, gap) },
+          1024: { slidesPerView: desktop, slidesPerGroup: scroll("slides_to_scroll", 1), spaceBetween: gap },
         },
       } as unknown as ConstructorParameters<typeof Swiper>[1]);
     });

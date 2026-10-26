@@ -27,6 +27,9 @@ const builtInPages = cache((): PageData[] =>
     .map((f) => JSON.parse(readFileSync(path.join(DATA, "pages", f), "utf8")) as PageData),
 );
 
+/** Is this path one of the pages converted from the live site? */
+export const isBuiltInPath = (pathname: string) => builtInPages().some((p) => p.path === pathname);
+
 const builtInChrome = cache((): Chrome => JSON.parse(readFileSync(path.join(DATA, "chrome.json"), "utf8")) as Chrome);
 
 /* ---------- Sanity -> built-in shape ---------- */

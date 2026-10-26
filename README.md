@@ -16,7 +16,7 @@ the form handler (public/api/form.php).
 | Page route (every page, at its live URL) | `app/(site)/[[...slug]]/page.tsx` |
 | Behaviour (menus, tabs, accordions, sliders, gallery, popups, forms…) | `lib/runtime/*` — plain TypeScript, no React in the browser |
 | CMS | Sanity Studio at `/cms` (`sanity.config.ts`, `sanity/`) |
-| SEO | titles/meta/Open Graph from the live site (`lib/seo.ts`), JSON-LD (`lib/schema.ts`), `app/sitemap.ts`, `app/robots.ts` |
+| SEO | as on the live site: titles, meta, Open Graph and other head tags (`lib/seo.ts`), the live JSON-LD (`lib/schema.ts`), Rank Math-style sitemaps `/sitemap_index.xml` + `post-`/`page-`/`category-sitemap.xml` (`lib/sitemaps.ts`, data in `lib/data/sitemaps.json`), `public/robots.txt` |
 | Hosting rules | `public/.htaccess` (https, host, redirects, 410s, headers, caching) |
 | Forms | `public/api/form.php` (mail + optional Klaviyo + reCAPTCHA check) |
 
@@ -128,6 +128,13 @@ https redirect does not loop behind the proxy. Nothing else in the kingspa.com z
 needs to change.
 
 ## Notes for later changes
+
+- The site copies the live WordPress site as it was on 26 Oct 2026, including its
+  structured data (Rank Math's graph and the DaySpa block, with its rating and price
+  list) and robots.txt. Pages edited in Sanity keep their captured sitemap dates;
+  new pages are added to the sitemaps automatically.
+- WordPress's emoji support is kept (`components/WpEmoji.tsx`): browsers that cannot
+  draw the newest emoji get Twemoji images, as on the live site.
 
 - Icon fonts are cut down to the icons in use at build time. An icon that no page
   uses yet needs its CSS rule in the page stylesheet before it shows.

@@ -1,4 +1,4 @@
-import { $, $$, afterLoad, device, loadScript, settings, visibleOrIdle, whenVisible } from "./dom";
+import { $, $$, afterLoad, device, libDevice, loadScript, settings, visibleOrIdle, whenVisible } from "./dom";
 
 /*
  * Galleries (Elementor "e-gallery" masonry), the image lightbox, YouTube
@@ -15,12 +15,12 @@ function gallery(widget: HTMLElement) {
   const items = $$<HTMLElement>(".e-gallery-item", box);
   box.classList.add("e-gallery-container", `e-gallery-${String(s.gallery_layout || "grid")}`, "e-gallery--ltr");
   const gapOf = () => {
-    const d = device();
+    const d = libDevice();
     const v = (s[d === "desktop" ? "gap" : `gap_${d}`] ?? s.gap) as { size?: number } | undefined;
     return Number(v?.size ?? 10);
   };
   const colsOf = () => {
-    const d = device();
+    const d = libDevice();
     return Number(s[d === "desktop" ? "columns" : `columns_${d}`] ?? s.columns ?? 4);
   };
   const layout = () => {
